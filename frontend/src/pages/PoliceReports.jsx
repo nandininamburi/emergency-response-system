@@ -17,7 +17,6 @@ const PoliceReports = () => {
       setAllEmergencies(response.data);
     } catch (error) {
       console.error('Error fetching emergencies:', error);
-      // Demo data
       setAllEmergencies([
         {
           id: 'ER1001',
@@ -27,6 +26,8 @@ const PoliceReports = () => {
           status: 'Pending',
           name: 'Rahul Sharma',
           phone: '+919876543210',
+          latitude: 12.9716,
+          longitude: 77.5946,
           timestamp: new Date().toISOString(),
           priority: 'High',
           reportType: 'citizen'
@@ -39,6 +40,8 @@ const PoliceReports = () => {
           status: 'Assigned',
           name: 'Priya Patel',
           phone: '+919876543211',
+          latitude: 12.9812,
+          longitude: 77.7200,
           timestamp: new Date(Date.now() - 1800000).toISOString(),
           priority: 'Critical',
           reportType: 'dispatcher'
@@ -47,6 +50,47 @@ const PoliceReports = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const updateCaseStatus = async (id, status) => {
+    try {
+      await axios.put(`${import.meta.env.VITE_API_URL}/emergencies/${id}`, { 
+        status,
+        assignedOfficer: 'Officer Kumar',
+        updatedAt: new Date().toISOString()
+      });
+      fetchEmergencies();
+      const messages = {
+        'Assigned': '✅ Case accepted! You are now handling this case.',
+        'On Route': '🚗 You are on the way to the location!',
+        'Resolved': '✅ Case resolved successfully! Well done!'
+      };
+      alert(messages[status] || `✅ Status updated to: ${status}`);
+    } catch (error) {
+      console.error('Error updating case:', error);
+    }
+  };
+
+  const makeCall = (phoneNumber) => {
+    if (!phoneNumber) {
+      alert('📱 No phone number available');
+      return;
+    }
+    const cleanNumber = phoneNumber.replace(/[^0-9+]/g, '');
+    if (cleanNumber) {
+      window.location.href = `tel:${cleanNumber}`;
+    } else {
+      alert('📱 Invalid phone number');
+    }
+  };
+
+  const navigateTo = (lat, lng) => {
+    if (!lat || !lng) {
+      alert('📍 Location coordinates not available');
+      return;
+    }
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+    window.open(url, '_blank');
   };
 
   const getStatusColor = (status) => {
@@ -126,8 +170,8 @@ const PoliceReports = () => {
             ) : (
               filteredEmergencies().map((case_) => (
                 <div key={case_.id} className="p-4 hover:bg-gray-50 transition">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
+                  <div className="flex flex-wrap justify-between items-start gap-2">
+                    <div className="flex-1 min-w-[200px]">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-xl">{getEmergencyIcon(case_.emergencyType)}</span>
                         <span className="font-semibold">#{case_.complaintId || case_.id}</span>
@@ -155,12 +199,61 @@ const PoliceReports = () => {
                         <span>🕐 {new Date(case_.timestamp).toLocaleString()}</span>
                       </div>
                     </div>
-                    <Link 
-                      to={`/track/${case_.complaintId || case_.id}`} 
-                      className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition ml-4"
-                    >
-                      View
-                    </Link>
+                    
+                    {/* ✅ Action Buttons */}
+                    <div className="flex flex-wrap gap-1">
+                      {/* Call Button */}
+                      {case_.phone && (
+                        <button 
+                          onClick={() => makeCall(case_.phone)}
+                          className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition flex items-center gap-1"
+                        >
+                          📞 Call
+                        </button>
+                      )}
+                      
+                      {/* Navigate Button */}
+                      {case_.latitude && case_.longitude && (
+                        <button 
+                          onClick={() => navigateTo(case_.latitude, case_.longitude)}
+                          className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 transition flex items-center gap-1"
+                        >
+                          🗺️ Navigate
+                        </button>
+                      )}
+                      
+                      {/* Accept Button */}
+                      {case_.status === 'Pending' && (
+                        <button 
+                          onClick={() => updateCaseStatus(case_.id, 'Assigned')}
+                          className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition flex items-center gap-1"
+                        >
+                          👮 Accept
+                        </button>
+                      )}
+                      
+                      {/* En Route Button */}
+                      {case_.status === 'Assigned' && (
+                        <button 
+                          onClick={() => updateCaseStatus(case_.id, 'On Route')}
+                          className="px-3 py-1 bg-purple-600 text-white text-xs rounded hover:bg-purple-700 transition flex items-center gap-1"
+                        >
+                          🚗 Route
+                        </button>
+                      )}
+                      
+                      {/* Resolve Button */}
+                      {case_.status === 'On Route' && (
+                        <button 
+                          onClick={() => updateCaseStatus(case_.id, 'Resolved')}
+                          className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition flex items-center gap-1"
+                        >
+                          ✅ Resolve
+                        </button>
+                      )}
+                      
+                      {/* ✅ Removed "View" link - Police don't need Track page */}
+                    </div>
                   </div>
                 </div>
               ))

@@ -35,9 +35,9 @@ const PoliceNavbar = () => {
 
   const isActive = (path) => location.pathname === path;
 
+  // ✅ Removed Live Map from navbar
   const policeNavItems = [
     { name: '📊 Dashboard', path: '/police' },
-    { name: '📍 Live Map', path: '/police/map' },
     { name: '📋 All Reports', path: '/police/reports' },
     { name: '👮 My Cases', path: '/police/cases' },
     { name: '🆘 SOS Alerts', path: '/police/sos' },
@@ -52,7 +52,6 @@ const PoliceNavbar = () => {
     <nav className="bg-gradient-to-r from-blue-800 to-blue-900 shadow-lg sticky top-0 z-50 border-b-2 border-yellow-400">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16">
-          {/* Logo */}
           <div className="flex items-center">
             <Link to="/police" className="flex items-center space-x-3">
               <div className="bg-yellow-400 p-2 rounded-full">
@@ -65,7 +64,6 @@ const PoliceNavbar = () => {
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
             {policeNavItems.map((item) => (
               <Link
@@ -81,7 +79,6 @@ const PoliceNavbar = () => {
               </Link>
             ))}
             
-            {/* User Profile */}
             <div className="relative ml-4" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen(!dropdownOpen)}
@@ -98,7 +95,6 @@ const PoliceNavbar = () => {
                 </svg>
               </button>
 
-              {/* Dropdown */}
               {dropdownOpen && (
                 <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-200 py-2 z-50">
                   <div className="px-4 py-3 border-b border-gray-100">
@@ -146,7 +142,6 @@ const PoliceNavbar = () => {
             </div>
           </div>
 
-          {/* Mobile Menu */}
           <div className="md:hidden flex items-center">
             <button
               onClick={() => setIsOpen(!isOpen)}
@@ -164,7 +159,6 @@ const PoliceNavbar = () => {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       {isOpen && (
         <div className="md:hidden bg-blue-900">
           <div className="px-4 pt-2 pb-3 space-y-1">

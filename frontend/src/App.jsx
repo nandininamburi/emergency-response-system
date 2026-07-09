@@ -9,7 +9,6 @@ import ReportEmergency from './pages/ReportEmergency';
 import TrackComplaint from './pages/TrackComplaint';
 import DispatcherDashboard from './pages/DispatcherDashboard';
 import PoliceDashboard from './pages/PoliceDashboard';
-import PoliceLiveMap from './pages/PoliceLiveMap';
 import PoliceReports from './pages/PoliceReports';
 import PoliceCases from './pages/PoliceCases';
 import PoliceSOS from './pages/PoliceSOS';
@@ -69,7 +68,6 @@ function App() {
               
               {/* Police Routes */}
               <Route path="/police" element={<PoliceDashboard />} />
-              <Route path="/police/map" element={<PoliceLiveMap />} />
               <Route path="/police/reports" element={<PoliceReports />} />
               <Route path="/police/cases" element={<PoliceCases />} />
               <Route path="/police/sos" element={<PoliceSOS />} />

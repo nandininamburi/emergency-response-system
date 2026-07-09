@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import MapComponent from '../components/MapComponent';
 
 const PoliceCases = () => {
   const [myCases, setMyCases] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCase, setSelectedCase] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
     fetchMyCases();
@@ -27,6 +30,8 @@ const PoliceCases = () => {
           status: 'Assigned',
           name: 'Priya Patel',
           phone: '+919876543211',
+          latitude: 12.9812,
+          longitude: 77.7200,
           timestamp: new Date().toISOString(),
           priority: 'Critical'
         },
@@ -38,6 +43,8 @@ const PoliceCases = () => {
           status: 'On Route',
           name: 'Amit Kumar',
           phone: '+919876543212',
+          latitude: 12.9550,
+          longitude: 77.7400,
           timestamp: new Date().toISOString(),
           priority: 'High'
         }
@@ -45,6 +52,45 @@ const PoliceCases = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const updateStatus = async (id, status) => {
+    try {
+      await axios.put(`${import.meta.env.VITE_API_URL}/emergencies/${id}`, { 
+        status,
+        assignedOfficer: 'Officer Kumar'
+      });
+      fetchMyCases();
+      const messages = {
+        'On Route': '🚗 You are on the way to the location!',
+        'Resolved': '✅ Case resolved successfully! Well done!'
+      };
+      alert(messages[status] || `✅ Status updated to: ${status}`);
+    } catch (error) {
+      console.error('Error updating status:', error);
+    }
+  };
+
+  const makeCall = (phoneNumber) => {
+    if (!phoneNumber) {
+      alert('📱 No phone number available');
+      return;
+    }
+    const cleanNumber = phoneNumber.replace(/[^0-9+]/g, '');
+    if (cleanNumber) {
+      window.location.href = `tel:${cleanNumber}`;
+    } else {
+      alert('📱 Invalid phone number');
+    }
+  };
+
+  const navigateTo = (lat, lng) => {
+    if (!lat || !lng) {
+      alert('📍 Location coordinates not available');
+      return;
+    }
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}&travelmode=driving`;
+    window.open(url, '_blank');
   };
 
   const getStatusColor = (status) => {
@@ -68,14 +114,120 @@ const PoliceCases = () => {
     return icons[type] || '📌';
   };
 
-  const updateStatus = async (id, status) => {
-    try {
-      await axios.put(`${import.meta.env.VITE_API_URL}/emergencies/${id}`, { status });
-      fetchMyCases();
-      alert(`✅ Status updated to: ${status}`);
-    } catch (error) {
-      console.error('Error updating status:', error);
-    }
+  // ✅ View Details Modal with Map
+  const ViewDetailsModal = ({ case_, onClose }) => {
+    if (!case_) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">
+                📋 Case #{case_.complaintId || case_.id}
+              </h2>
+              <button onClick={onClose} className="text-gray-500 hover:text-gray-700 text-2xl">✕</button>
+            </div>
+            
+            <div className="space-y-4">
+              {/* Status and Priority */}
+              <div className="flex gap-2 flex-wrap">
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(case_.status)}`}>
+                  {case_.status}
+                </span>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  case_.priority === 'Critical' ? 'bg-red-100 text-red-800' :
+                  case_.priority === 'High' ? 'bg-orange-100 text-orange-800' :
+                  'bg-yellow-100 text-yellow-800'
+                }`}>
+                  {case_.priority || 'Medium'}
+                </span>
+              </div>
+
+              {/* Reporter Details */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-700 mb-2">👤 Reporter Details</h3>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div><span className="text-gray-500">Name:</span> <span className="ml-2 font-medium">{case_.name || 'Unknown'}</span></div>
+                  <div><span className="text-gray-500">Phone:</span> <span className="ml-2 font-medium">{case_.phone || 'N/A'}</span></div>
+                </div>
+              </div>
+
+              {/* Incident Details */}
+              <div className="bg-blue-50 rounded-lg p-4">
+                <h3 className="font-semibold text-gray-700 mb-2">🚨 Incident Details</h3>
+                <div className="space-y-2 text-sm">
+                  <div><span className="text-gray-500">Type:</span> <span className="ml-2 font-medium">{case_.emergencyType}</span></div>
+                  <div><span className="text-gray-500">Description:</span> <p className="mt-1 text-gray-700 bg-white p-2 rounded">{case_.description}</p></div>
+                  <div><span className="text-gray-500">Location:</span> <span className="ml-2 font-medium">{case_.latitude?.toFixed(6)}, {case_.longitude?.toFixed(6)}</span></div>
+                </div>
+              </div>
+
+              {/* ✅ Mini Map - Like Swiggy/Zomato */}
+              {case_.latitude && case_.longitude && (
+                <div className="rounded-lg overflow-hidden border border-gray-200">
+                  <div className="h-48">
+                    <MapComponent 
+                      emergencies={[case_]} 
+                      center={[case_.latitude, case_.longitude]} 
+                    />
+                  </div>
+                  <p className="text-xs text-center text-gray-500 py-1">📍 Emergency Location</p>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-2 flex-wrap mt-4">
+                {case_.phone && (
+                  <button 
+                    onClick={() => {
+                      makeCall(case_.phone);
+                      onClose();
+                    }} 
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+                  >
+                    📞 Call
+                  </button>
+                )}
+                {case_.latitude && case_.longitude && (
+                  <button 
+                    onClick={() => {
+                      navigateTo(case_.latitude, case_.longitude);
+                      onClose();
+                    }} 
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center gap-2"
+                  >
+                    🗺️ Navigate
+                  </button>
+                )}
+                {case_.status === 'Assigned' && (
+                  <button 
+                    onClick={() => {
+                      updateStatus(case_.id, 'On Route');
+                      onClose();
+                    }} 
+                    className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
+                  >
+                    🚗 En Route
+                  </button>
+                )}
+                {case_.status === 'On Route' && (
+                  <button 
+                    onClick={() => {
+                      updateStatus(case_.id, 'Resolved');
+                      onClose();
+                    }} 
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+                  >
+                    ✅ Resolve
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -118,7 +270,10 @@ const PoliceCases = () => {
           </div>
           <div className="divide-y divide-gray-200 max-h-[600px] overflow-y-auto">
             {loading ? (
-              <div className="p-6 text-center text-gray-500">Loading...</div>
+              <div className="p-6 text-center text-gray-500">
+                <div className="animate-spin inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+                <p className="mt-2">Loading...</p>
+              </div>
             ) : myCases.length === 0 ? (
               <div className="p-6 text-center text-gray-500">
                 <span className="text-4xl block mb-2">📭</span>
@@ -152,12 +307,38 @@ const PoliceCases = () => {
                       </div>
                     </div>
                     <div className="flex flex-col gap-2">
-                      <Link 
-                        to={`/track/${case_.complaintId || case_.id}`} 
+                      {/* ✅ View Details Button */}
+                      <button 
+                        onClick={() => {
+                          setSelectedCase(case_);
+                          setShowDetails(true);
+                        }}
                         className="px-3 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition text-center"
                       >
-                        View
-                      </Link>
+                        📋 Details
+                      </button>
+                      
+                      {/* ✅ Call Button */}
+                      {case_.phone && (
+                        <button 
+                          onClick={() => makeCall(case_.phone)}
+                          className="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition text-center"
+                        >
+                          📞 Call
+                        </button>
+                      )}
+                      
+                      {/* ✅ Navigate Button */}
+                      {case_.latitude && case_.longitude && (
+                        <button 
+                          onClick={() => navigateTo(case_.latitude, case_.longitude)}
+                          className="px-3 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700 transition text-center"
+                        >
+                          🗺️ Navigate
+                        </button>
+                      )}
+                      
+                      {/* Status Buttons */}
                       {case_.status === 'Assigned' && (
                         <button 
                           onClick={() => updateStatus(case_.id, 'On Route')}
@@ -182,6 +363,17 @@ const PoliceCases = () => {
           </div>
         </div>
       </div>
+
+      {/* ✅ Details Modal */}
+      {showDetails && selectedCase && (
+        <ViewDetailsModal 
+          case_={selectedCase} 
+          onClose={() => {
+            setShowDetails(false);
+            setSelectedCase(null);
+          }} 
+        />
+      )}
     </div>
   );
 };
