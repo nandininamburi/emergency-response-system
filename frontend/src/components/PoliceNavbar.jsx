@@ -35,11 +35,10 @@ const PoliceNavbar = () => {
 
   const isActive = (path) => location.pathname === path;
 
-  // ✅ Removed Live Map from navbar
+  // ✅ Removed "My Cases" - only Dashboard, Reports, SOS
   const policeNavItems = [
     { name: '📊 Dashboard', path: '/police' },
     { name: '📋 All Reports', path: '/police/reports' },
-    { name: '👮 My Cases', path: '/police/cases' },
     { name: '🆘 SOS Alerts', path: '/police/sos' },
   ];
 

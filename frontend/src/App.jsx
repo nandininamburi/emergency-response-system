@@ -10,7 +10,6 @@ import TrackComplaint from './pages/TrackComplaint';
 import DispatcherDashboard from './pages/DispatcherDashboard';
 import PoliceDashboard from './pages/PoliceDashboard';
 import PoliceReports from './pages/PoliceReports';
-import PoliceCases from './pages/PoliceCases';
 import PoliceSOS from './pages/PoliceSOS';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -69,7 +68,6 @@ function App() {
               {/* Police Routes */}
               <Route path="/police" element={<PoliceDashboard />} />
               <Route path="/police/reports" element={<PoliceReports />} />
-              <Route path="/police/cases" element={<PoliceCases />} />
               <Route path="/police/sos" element={<PoliceSOS />} />
             </Routes>
           </main>
