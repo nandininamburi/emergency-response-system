@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: emergency-backend
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
+      - key: USE_FIREBASE
+        value: true
+      - key: FRONTEND_URL
+        value: https://your-frontend-url.vercel.app
+      - key: GEMINI_API_KEY
+        sync: false
