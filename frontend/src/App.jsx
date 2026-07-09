@@ -1,43 +1,48 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import CitizenNavbar from './components/CitizenNavbar';
-import PoliceNavbar from './components/PoliceNavbar';
-import Footer from './components/Footer';
-import Home from './pages/Home';
-import ReportEmergency from './pages/ReportEmergency';
-import TrackComplaint from './pages/TrackComplaint';
-import DispatcherDashboard from './pages/DispatcherDashboard';
-import PoliceDashboard from './pages/PoliceDashboard';
-import PoliceReports from './pages/PoliceReports';
-import PoliceSOS from './pages/PoliceSOS';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import DispatcherSOS from './pages/DispatcherSOS';
-import './index.css';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+import CitizenNavbar from "./components/CitizenNavbar";
+import PoliceNavbar from "./components/PoliceNavbar";
+import Footer from "./components/Footer";
+import Home from "./pages/Home";
+import ReportEmergency from "./pages/ReportEmergency";
+import TrackComplaint from "./pages/TrackComplaint";
+import DispatcherDashboard from "./pages/DispatcherDashboard";
+import PoliceDashboard from "./pages/PoliceDashboard";
+import PoliceReports from "./pages/PoliceReports";
+import PoliceSOS from "./pages/PoliceSOS";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+import DispatcherSOS from "./pages/DispatcherSOS";
+import "./index.css";
 
 const NavbarSelector = () => {
-  const [userRole, setUserRole] = React.useState('citizen');
-  
+  const [userRole, setUserRole] = React.useState("citizen");
+
   React.useEffect(() => {
-    const userData = localStorage.getItem('user');
+    const userData = localStorage.getItem("user");
     if (userData) {
       const parsed = JSON.parse(userData);
-      setUserRole(parsed.role || 'citizen');
+      setUserRole(parsed.role || "citizen");
     }
-    
+
     const handleStorageChange = () => {
-      const updatedUser = localStorage.getItem('user');
+      const updatedUser = localStorage.getItem("user");
       if (updatedUser) {
         const parsed = JSON.parse(updatedUser);
-        setUserRole(parsed.role || 'citizen');
+        setUserRole(parsed.role || "citizen");
       }
     };
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener("storage", handleStorageChange);
+    return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
-  if (userRole === 'police') {
+  if (userRole === "police") {
     return <PoliceNavbar />;
   }
   return <CitizenNavbar />;
@@ -54,21 +59,35 @@ function App() {
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              
+
               {/* Citizen Routes */}
               <Route path="/" element={<Home />} />
               <Route path="/report" element={<ReportEmergency />} />
               <Route path="/track" element={<TrackComplaint />} />
               <Route path="/track/:id" element={<TrackComplaint />} />
-              
+
               {/* Dispatcher Routes */}
               <Route path="/dispatcher" element={<DispatcherDashboard />} />
               <Route path="/sos" element={<DispatcherSOS />} />
-              
-              {/* Police Routes */}
+
+              {/* Police Routes - Only working routes */}
               <Route path="/police" element={<PoliceDashboard />} />
               <Route path="/police/reports" element={<PoliceReports />} />
               <Route path="/police/sos" element={<PoliceSOS />} />
+
+              {/* Redirect old routes */}
+              <Route
+                path="/police/map"
+                element={<Navigate to="/police" replace />}
+              />
+              <Route
+                path="/police/cases"
+                element={<Navigate to="/police/reports" replace />}
+              />
+              <Route
+                path="/police/*"
+                element={<Navigate to="/police" replace />}
+              />
             </Routes>
           </main>
           <Footer />

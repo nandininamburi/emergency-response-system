@@ -216,23 +216,19 @@ const PoliceDashboard = () => {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-          <Link to="/police/map" className="bg-blue-600 text-white p-4 rounded-lg text-center hover:bg-blue-700 transition">
-            <span className="text-2xl block">📍</span>
-            <span className="text-sm font-medium">Live Map</span>
-          </Link>
-          <Link to="/police/reports" className="bg-purple-600 text-white p-4 rounded-lg text-center hover:bg-purple-700 transition">
+        {/* Quick Actions - ✅ Only working routes */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+          <Link to="/police/reports" className="bg-blue-600 text-white p-4 rounded-lg text-center hover:bg-blue-700 transition">
             <span className="text-2xl block">📋</span>
             <span className="text-sm font-medium">All Reports</span>
-          </Link>
-          <Link to="/police/cases" className="bg-green-600 text-white p-4 rounded-lg text-center hover:bg-green-700 transition">
-            <span className="text-2xl block">👮</span>
-            <span className="text-sm font-medium">My Cases</span>
           </Link>
           <Link to="/police/sos" className="bg-red-600 text-white p-4 rounded-lg text-center hover:bg-red-700 transition">
             <span className="text-2xl block">🆘</span>
             <span className="text-sm font-medium">SOS Alerts</span>
+          </Link>
+          <Link to="/police/reports" className="bg-green-600 text-white p-4 rounded-lg text-center hover:bg-green-700 transition">
+            <span className="text-2xl block">📊</span>
+            <span className="text-sm font-medium">View Reports</span>
           </Link>
         </div>
 
@@ -244,7 +240,10 @@ const PoliceDashboard = () => {
           </div>
           <div className="divide-y divide-gray-200">
             {loading ? (
-              <div className="p-6 text-center text-gray-500">Loading...</div>
+              <div className="p-6 text-center text-gray-500">
+                <div className="animate-spin inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+                <p className="mt-2">Loading...</p>
+              </div>
             ) : recentCases.length === 0 ? (
               <div className="p-6 text-center text-gray-500">No cases found</div>
             ) : (

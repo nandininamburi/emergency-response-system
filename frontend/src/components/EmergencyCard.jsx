@@ -1,26 +1,26 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React from "react";
+import { Link } from "react-router-dom";
 
 const EmergencyCard = ({ emergency }) => {
   const getStatusColor = (status) => {
     const colors = {
-      'Pending': 'bg-yellow-100 text-yellow-800',
-      'Assigned': 'bg-blue-100 text-blue-800',
-      'On Route': 'bg-purple-100 text-purple-800',
-      'Resolved': 'bg-green-100 text-green-800',
+      Pending: "bg-yellow-100 text-yellow-800",
+      Assigned: "bg-blue-100 text-blue-800",
+      "On Route": "bg-purple-100 text-purple-800",
+      Resolved: "bg-green-100 text-green-800",
     };
-    return colors[status] || 'bg-gray-100 text-gray-800';
+    return colors[status] || "bg-gray-100 text-gray-800";
   };
 
   const getEmergencyIcon = (type) => {
     const icons = {
-      'Accident': '🚗',
-      'Fire': '🔥',
-      'Crime': '🚨',
-      'Medical': '🩺',
-      'Other': '📌'
+      Accident: "🚗",
+      Fire: "🔥",
+      Crime: "🚨",
+      Medical: "🩺",
+      Other: "📌",
     };
-    return icons[type] || '📌';
+    return icons[type] || "📌";
   };
 
   return (
@@ -28,9 +28,13 @@ const EmergencyCard = ({ emergency }) => {
       <div className="flex justify-between items-start">
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <span className="text-2xl">{getEmergencyIcon(emergency.emergencyType)}</span>
+            <span className="text-2xl">
+              {getEmergencyIcon(emergency.emergencyType)}
+            </span>
             <h3 className="text-lg font-semibold">#{emergency.id}</h3>
-            <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(emergency.status)}`}>
+            <span
+              className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(emergency.status)}`}
+            >
               {emergency.status}
             </span>
           </div>
