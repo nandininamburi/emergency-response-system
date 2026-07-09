@@ -9,12 +9,15 @@ import ReportEmergency from './pages/ReportEmergency';
 import TrackComplaint from './pages/TrackComplaint';
 import DispatcherDashboard from './pages/DispatcherDashboard';
 import PoliceDashboard from './pages/PoliceDashboard';
+import PoliceLiveMap from './pages/PoliceLiveMap';
+import PoliceReports from './pages/PoliceReports';
+import PoliceCases from './pages/PoliceCases';
+import PoliceSOS from './pages/PoliceSOS';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import DispatcherSOS from './pages/DispatcherSOS';
 import './index.css';
 
-// Component to choose which navbar to show based on role
 const NavbarSelector = () => {
   const [userRole, setUserRole] = React.useState('citizen');
   
@@ -25,7 +28,6 @@ const NavbarSelector = () => {
       setUserRole(parsed.role || 'citizen');
     }
     
-    // Listen for storage changes
     const handleStorageChange = () => {
       const updatedUser = localStorage.getItem('user');
       if (updatedUser) {
@@ -37,7 +39,6 @@ const NavbarSelector = () => {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // Police gets PoliceNavbar, everyone else gets CitizenNavbar
   if (userRole === 'police') {
     return <PoliceNavbar />;
   }
@@ -52,15 +53,26 @@ function App() {
           <NavbarSelector />
           <main className="flex-grow">
             <Routes>
+              {/* Public Routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              
+              {/* Citizen Routes */}
               <Route path="/" element={<Home />} />
               <Route path="/report" element={<ReportEmergency />} />
               <Route path="/track" element={<TrackComplaint />} />
               <Route path="/track/:id" element={<TrackComplaint />} />
+              
+              {/* Dispatcher Routes */}
               <Route path="/dispatcher" element={<DispatcherDashboard />} />
-              <Route path="/police" element={<PoliceDashboard />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
               <Route path="/sos" element={<DispatcherSOS />} />
+              
+              {/* Police Routes */}
+              <Route path="/police" element={<PoliceDashboard />} />
+              <Route path="/police/map" element={<PoliceLiveMap />} />
+              <Route path="/police/reports" element={<PoliceReports />} />
+              <Route path="/police/cases" element={<PoliceCases />} />
+              <Route path="/police/sos" element={<PoliceSOS />} />
             </Routes>
           </main>
           <Footer />
