@@ -17,6 +17,7 @@ const PoliceSOS = () => {
 
   const fetchSOS = async () => {
     try {
+      const API_URL = import.meta.env.VITE_API_URL || 'https://emergency-backend-uzkq.onrender.com/api';
       const response = await axios.get(`${import.meta.env.VITE_API_URL}/emergencies`);
       const sosData = response.data.filter(e => e.reportType === 'dispatcher');
       setSosEmergencies(sosData);

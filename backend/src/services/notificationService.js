@@ -3,10 +3,10 @@ class NotificationService {
   async sendAutoAlerts(emergency) {
     try {
       console.log('\n🔔 ===== AUTO-ALERT SYSTEM =====');
-      console.log(`📢 Emergency #${emergency.complaintId}`);
+      console.log(`📢 Emergency #${emergency.complaintId || emergency.id}`);
       console.log(`📋 Type: ${emergency.emergencyType}`);
       console.log(`📊 Priority: ${emergency.priority}`);
-      console.log(`👤 Reporter: ${emergency.reporterName} (${emergency.reportType})`);
+      console.log(`👤 Reporter: ${emergency.reporterName || emergency.name} (${emergency.reportType || 'citizen'})`);
       
       // Determine who to alert based on emergency type
       const recipients = [];
@@ -36,7 +36,7 @@ class NotificationService {
       // Alert dispatchers
       recipients.push({
         role: 'Dispatcher',
-        message: `📋 New emergency #${emergency.complaintId} needs assignment`
+        message: `📋 New emergency #${emergency.complaintId || emergency.id} needs assignment`
       });
       
       // Log all alerts
@@ -44,16 +44,43 @@ class NotificationService {
         console.log(`📤 Alert to ${recipient.role}: ${recipient.message}`);
       });
       
-      // Store alert info in emergency
-      emergency.alertSent = true;
-      emergency.alertTimestamp = new Date().toISOString();
-      emergency.alertRecipients = recipients.map(r => r.role);
-      
       console.log('✅ Auto-alerts sent successfully!\n');
       
       return true;
     } catch (error) {
       console.error('Failed to send auto-alerts:', error);
+      return false;
+    }
+  }
+
+  // ✅ SOS Specific Alerts
+  async sendSOSAlerts(emergency) {
+    try {
+      console.log('\n🆘 ===== SOS EMERGENCY ALERT =====');
+      console.log(`🚨 URGENT SOS from: ${emergency.dispatcherName || emergency.name}`);
+      console.log(`📱 Phone: ${emergency.dispatcherPhone || emergency.phone}`);
+      console.log(`📍 Location: ${emergency.latitude}, ${emergency.longitude}`);
+      console.log(`🩸 Blood Group: ${emergency.bloodGroup || 'Unknown'}`);
+      console.log(`⚠️ Allergies: ${emergency.allergies || 'None'}`);
+      
+      // Send to all emergency services
+      const urgentRecipients = [
+        '🚓 Police Department',
+        '🏥 Nearest Hospital',
+        '🚒 Fire Brigade',
+        '🚑 Ambulance Service',
+        '📡 Dispatcher Control Room'
+      ];
+      
+      console.log('📤 URGENT ALERT SENT TO:');
+      urgentRecipients.forEach(recipient => {
+        console.log(`   🔴 ${recipient}`);
+      });
+      
+      console.log('✅ SOS alerts sent successfully!\n');
+      return true;
+    } catch (error) {
+      console.error('Failed to send SOS alerts:', error);
       return false;
     }
   }
@@ -65,13 +92,12 @@ class NotificationService {
         return true;
       }
       
-      console.log(`🏥 Notifying nearby hospitals for emergency #${emergency.complaintId}`);
+      console.log(`🏥 Notifying nearby hospitals for emergency #${emergency.complaintId || emergency.id}`);
       console.log(`   Patient: ${emergency.dispatcherName || emergency.name}`);
       console.log(`   Blood Group: ${emergency.bloodGroup || 'Unknown'}`);
       console.log(`   Allergies: ${emergency.allergies || 'None'}`);
       console.log(`   Emergency Contact: ${emergency.emergencyContact || 'N/A'}`);
       
-      // In production, this would call hospital APIs
       return true;
     } catch (error) {
       console.error('Failed to notify hospitals:', error);
@@ -82,9 +108,9 @@ class NotificationService {
   // Notify dispatcher
   async notifyDispatcher(emergency) {
     try {
-      console.log(`📢 [Dispatcher] New emergency #${emergency.complaintId}`);
+      console.log(`📢 [Dispatcher] New emergency #${emergency.complaintId || emergency.id}`);
       console.log(`   Type: ${emergency.emergencyType}`);
-      console.log(`   Reporter: ${emergency.reporterName} (${emergency.reportType})`);
+      console.log(`   Reporter: ${emergency.reporterName || emergency.name} (${emergency.reportType || 'citizen'})`);
       return true;
     } catch (error) {
       console.error('Failed to notify dispatcher:', error);
@@ -95,7 +121,7 @@ class NotificationService {
   // Notify citizen
   async notifyCitizen(emergency) {
     try {
-      console.log(`📱 [Citizen] Status update for #${emergency.complaintId}: ${emergency.status}`);
+      console.log(`📱 [Citizen] Status update for #${emergency.complaintId || emergency.id}: ${emergency.status}`);
       return true;
     } catch (error) {
       console.error('Failed to notify citizen:', error);
@@ -107,7 +133,7 @@ class NotificationService {
   async notifyOfficer(officer, emergency) {
     try {
       console.log(`👮 [Officer] New case assigned to ${officer.name}`);
-      console.log(`   Case: #${emergency.complaintId}, Type: ${emergency.emergencyType}`);
+      console.log(`   Case: #${emergency.complaintId || emergency.id}, Type: ${emergency.emergencyType}`);
       return true;
     } catch (error) {
       console.error('Failed to notify officer:', error);

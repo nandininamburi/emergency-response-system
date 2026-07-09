@@ -14,6 +14,7 @@ const Home = () => {
   const startYRef = useRef(0);
   const [location, setLocation] = useState(DEFAULT_LOCATION);
   const [locationAttempted, setLocationAttempted] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Auto-login check
   useEffect(() => {
@@ -106,6 +107,9 @@ const Home = () => {
   };
 
   const handleEmergencySubmit = async (emergencyType, icon) => {
+    if (loading) return;
+    setLoading(true);
+
     try {
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
       
@@ -121,22 +125,33 @@ const Home = () => {
         reporterRole: 'citizen'
       };
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/emergencies/citizen`, {
+      // ✅ Use the correct API URL with fallback
+      const API_URL = import.meta.env.VITE_API_URL || 'https://emergency-backend-uzkq.onrender.com/api';
+      
+      const response = await fetch(`${API_URL}/emergencies/citizen`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(emergencyData)
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
       }
 
       const result = await response.json();
-      alert(`✅ ${icon} Emergency reported!\nType: ${emergencyType}\nComplaint ID: ${result.complaintId}`);
-      navigate(`/track/${result.complaintId}`);
+      
+      if (result.success) {
+        alert(`✅ ${icon} Emergency reported!\nType: ${emergencyType}\nComplaint ID: ${result.complaintId}`);
+        navigate(`/track/${result.complaintId}`);
+      } else {
+        throw new Error(result.message || 'Failed to report emergency');
+      }
     } catch (error) {
       console.error('Error reporting emergency:', error);
-      alert('Failed to report emergency. Please try again.');
+      alert('❌ Failed to report emergency. Please try again.\n\n' + error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -207,11 +222,12 @@ const Home = () => {
               className={`w-32 h-32 md:w-40 md:h-40 bg-red-600 text-white text-3xl font-bold rounded-full shadow-lg hover:bg-red-700 transform hover:scale-105 transition-all relative z-10 ${
                 isHolding ? 'scale-95' : ''
               }`}
+              disabled={loading}
             >
               <span className="flex flex-col items-center">
                 <span>🆘</span>
                 <span className="text-xs mt-1">
-                  {isHolding ? `${Math.round(holdProgress)}%` : 'Hold 5s'}
+                  {loading ? 'Sending...' : isHolding ? `${Math.round(holdProgress)}%` : 'Hold 5s'}
                 </span>
               </span>
             </button>

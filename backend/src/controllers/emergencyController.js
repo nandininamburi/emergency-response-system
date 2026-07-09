@@ -51,7 +51,7 @@ exports.createCitizenEmergency = async (req, res) => {
   }
 };
 
-// ✅ Create emergency (Dispatcher form - SOS) - FULLY UPDATED
+// Create emergency (Dispatcher form - SOS)
 exports.createDispatcherEmergency = async (req, res) => {
   try {
     const { 
@@ -70,7 +70,7 @@ exports.createDispatcherEmergency = async (req, res) => {
       allergies
     } = req.body;
     
-    // Validate required fields
+    // ✅ Validate required fields
     if (!dispatcherName || !dispatcherPhone) {
       return res.status(400).json({ 
         success: false,
@@ -110,16 +110,17 @@ exports.createDispatcherEmergency = async (req, res) => {
       allergies: allergies || null,
       aiPrediction: aiPrediction || null,
       status: 'Pending',
-      priority: 'Critical', // ✅ SOS is always Critical priority
+      priority: 'Critical', // SOS is always Critical priority
       timestamp: new Date().toISOString()
     });
     
     // ✅ Save to database
     const result = await emergency.save();
     
-    // ✅ Send immediate auto-alerts to police, hospitals, and officers
+    // ✅ Send immediate auto-alerts
     await notificationService.sendAutoAlerts(result);
     await notificationService.notifyNearbyHospitals(result);
+    await notificationService.sendSOSAlerts(result);
     
     // ✅ Return success response
     res.status(201).json({
@@ -141,7 +142,7 @@ exports.createDispatcherEmergency = async (req, res) => {
   }
 };
 
-// Get all emergencies (FIFO - First In First Out)
+// Get all emergencies (FIFO)
 exports.getAllEmergencies = async (req, res) => {
   try {
     const emergencies = await Emergency.getAll();

@@ -4,7 +4,6 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix for default markers
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -19,7 +18,6 @@ const ReportEmergency = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [locationError, setLocationError] = useState(false);
-  const [locationAttempted, setLocationAttempted] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -43,63 +41,46 @@ const ReportEmergency = () => {
     }
   }, []);
 
-  // Get location with fallback - only once
+  // Get location with fallback
   useEffect(() => {
-    if (!locationAttempted) {
-      setLocationAttempted(true);
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const { latitude, longitude } = position.coords;
-            setFormData(prev => ({ ...prev, latitude, longitude }));
-            setLocation({ lat: latitude, lng: longitude });
-            setLocationError(false);
-          },
-          (error) => {
-            console.error('Error getting location:', error.message);
-            setLocationError(true);
-            // Use default location (Ongole)
-            setFormData(prev => ({ 
-              ...prev, 
-              latitude: DEFAULT_LOCATION.latitude, 
-              longitude: DEFAULT_LOCATION.longitude 
-            }));
-            setLocation({ 
-              lat: DEFAULT_LOCATION.latitude, 
-              lng: DEFAULT_LOCATION.longitude 
-            });
-          }
-        );
-      } else {
-        setLocationError(true);
-        setFormData(prev => ({ 
-          ...prev, 
-          latitude: DEFAULT_LOCATION.latitude, 
-          longitude: DEFAULT_LOCATION.longitude 
-        }));
-        setLocation({ 
-          lat: DEFAULT_LOCATION.latitude, 
-          lng: DEFAULT_LOCATION.longitude 
-        });
-      }
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setFormData(prev => ({ ...prev, latitude, longitude }));
+          setLocation({ lat: latitude, lng: longitude });
+          setLocationError(false);
+        },
+        (error) => {
+          console.error('Error getting location:', error.message);
+          setLocationError(true);
+          setFormData(prev => ({ 
+            ...prev, 
+            latitude: DEFAULT_LOCATION.latitude, 
+            longitude: DEFAULT_LOCATION.longitude 
+          }));
+          setLocation({ 
+            lat: DEFAULT_LOCATION.latitude, 
+            lng: DEFAULT_LOCATION.longitude 
+          });
+        }
+      );
+    } else {
+      setLocationError(true);
+      setFormData(prev => ({ 
+        ...prev, 
+        latitude: DEFAULT_LOCATION.latitude, 
+        longitude: DEFAULT_LOCATION.longitude 
+      }));
+      setLocation({ 
+        lat: DEFAULT_LOCATION.latitude, 
+        lng: DEFAULT_LOCATION.longitude 
+      });
     }
-  }, [locationAttempted]);
+  }, []);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleManualLocation = (e) => {
-    const { name, value } = e.target;
-    const numValue = parseFloat(value);
-    if (!isNaN(numValue)) {
-      setFormData(prev => ({ ...prev, [name]: numValue }));
-      setLocation({ 
-        lat: name === 'latitude' ? numValue : formData.latitude, 
-        lng: name === 'longitude' ? numValue : formData.longitude 
-      });
-      setLocationError(false);
-    }
   };
 
   const handleSubmit = async (e) => {
@@ -107,7 +88,9 @@ const ReportEmergency = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/emergencies/citizen`, {
+      const API_URL = import.meta.env.VITE_API_URL || 'https://emergency-backend-uzkq.onrender.com/api';
+      
+      const response = await fetch(`${API_URL}/emergencies/citizen`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -117,17 +100,22 @@ const ReportEmergency = () => {
         })
       });
 
-      if (response.ok) {
-        const result = await response.json();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit report');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
         alert(`✅ Emergency reported!\nComplaint ID: ${result.complaintId}`);
         navigate(`/track/${result.complaintId}`);
       } else {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to submit report');
+        throw new Error(result.message || 'Failed to submit report');
       }
     } catch (error) {
       console.error('Error submitting report:', error);
-      alert('Failed to submit report. Please try again.');
+      alert('❌ Failed to submit report. Please try again.\n\n' + error.message);
     } finally {
       setLoading(false);
     }
@@ -145,26 +133,6 @@ const ReportEmergency = () => {
     return location ? <Marker position={[location.lat, location.lng]} /> : null;
   };
 
-  const getCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          setFormData(prev => ({ ...prev, latitude, longitude }));
-          setLocation({ lat: latitude, lng: longitude });
-          setLocationError(false);
-          alert('📍 Location updated successfully!');
-        },
-        (error) => {
-          alert('📍 Please allow location access in your browser settings.\nUsing default location (Ongole).');
-          setLocationError(true);
-        }
-      );
-    } else {
-      alert('📍 Geolocation not supported. Please enter location manually.');
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg overflow-hidden">
@@ -176,19 +144,10 @@ const ReportEmergency = () => {
           </div>
 
           {locationError && (
-            <div className="mb-4 bg-yellow-50 border border-yellow-400 rounded-lg p-3 flex items-start gap-2">
-              <span className="text-yellow-600 text-lg">📍</span>
-              <div>
-                <p className="text-sm text-yellow-800 font-medium">Location unavailable</p>
-                <p className="text-xs text-yellow-700">
-                  Using default location (Ongole). You can:
-                </p>
-                <ul className="text-xs text-yellow-700 list-disc pl-4 mt-1">
-                  <li>Click on the map to set your location</li>
-                  <li>Enter coordinates manually below</li>
-                  <li>Click "Get Current Location" to try again</li>
-                </ul>
-              </div>
+            <div className="mb-4 bg-yellow-50 border border-yellow-400 rounded-lg p-3">
+              <p className="text-sm text-yellow-800">
+                📍 Location unavailable. Using default location (Ongole). Click on map to set your location.
+              </p>
             </div>
           )}
 
@@ -254,8 +213,6 @@ const ReportEmergency = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 📍 Location {locationError && '(Click on map to update)'}
               </label>
-              
-              {/* Map */}
               <div className="h-56 rounded-md overflow-hidden border border-gray-300">
                 <MapContainer
                   center={[formData.latitude, formData.longitude]}
@@ -269,58 +226,28 @@ const ReportEmergency = () => {
                   <LocationMarker />
                 </MapContainer>
               </div>
-
-              {/* Location Controls */}
-              <div className="mt-3 grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-gray-600">Latitude</label>
-                  <input
-                    type="number"
-                    name="latitude"
-                    value={formData.latitude}
-                    onChange={handleManualLocation}
-                    step="0.000001"
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600">Longitude</label>
-                  <input
-                    type="number"
-                    name="longitude"
-                    value={formData.longitude}
-                    onChange={handleManualLocation}
-                    step="0.000001"
-                    className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-1.5 px-2 text-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="mt-2 flex gap-2">
-                <button
-                  type="button"
-                  onClick={getCurrentLocation}
-                  className="flex-1 py-1.5 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition"
-                >
-                  📍 Get Current Location
-                </button>
+              <div className="mt-2 flex justify-between text-xs">
+                <span className="text-gray-500">
+                  Lat: {formData.latitude.toFixed(6)}, Lng: {formData.longitude.toFixed(6)}
+                </span>
                 <button
                   type="button"
                   onClick={() => {
-                    setFormData(prev => ({ 
-                      ...prev, 
-                      latitude: DEFAULT_LOCATION.latitude, 
-                      longitude: DEFAULT_LOCATION.longitude 
-                    }));
-                    setLocation({ 
-                      lat: DEFAULT_LOCATION.latitude, 
-                      lng: DEFAULT_LOCATION.longitude 
-                    });
-                    setLocationError(false);
+                    if (navigator.geolocation) {
+                      navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                          const { latitude, longitude } = pos.coords;
+                          setFormData(prev => ({ ...prev, latitude, longitude }));
+                          setLocation({ lat: latitude, lng: longitude });
+                          setLocationError(false);
+                        },
+                        () => alert('📍 Please allow location access or click on map to set location.')
+                      );
+                    }
                   }}
-                  className="flex-1 py-1.5 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 transition"
+                  className="text-blue-600 hover:text-blue-800"
                 >
-                  📌 Reset to Default
+                  🔄 Get Current Location
                 </button>
               </div>
             </div>
@@ -330,17 +257,7 @@ const ReportEmergency = () => {
               disabled={loading}
               className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
             >
-              {loading ? (
-                <span className="flex items-center gap-2">
-                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Submitting...
-                </span>
-              ) : (
-                '🚨 Submit Emergency Report'
-              )}
+              {loading ? 'Submitting...' : '🚨 Submit Emergency Report'}
             </button>
           </form>
 

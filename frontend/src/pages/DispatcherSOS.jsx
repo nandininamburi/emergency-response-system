@@ -11,6 +11,9 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+// Default location (Ongole, Andhra Pradesh)
+const DEFAULT_LOCATION = { latitude: 15.5057, longitude: 80.0499 };
+
 const DispatcherSOS = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -20,8 +23,8 @@ const DispatcherSOS = () => {
     dispatcherAge: '',
     emergencyType: 'Medical',
     description: '',
-    latitude: 12.9716,
-    longitude: 77.5946,
+    latitude: DEFAULT_LOCATION.latitude,
+    longitude: DEFAULT_LOCATION.longitude,
     bloodGroup: '',
     aadhar: '',
     address: '',
@@ -30,6 +33,7 @@ const DispatcherSOS = () => {
     allergies: ''
   });
   const [location, setLocation] = useState(null);
+  const [locationError, setLocationError] = useState(false);
 
   useEffect(() => {
     // Auto-fill from localStorage if available
@@ -49,15 +53,40 @@ const DispatcherSOS = () => {
       }));
     }
 
+    // Get location with fallback
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude } = position.coords;
           setFormData(prev => ({ ...prev, latitude, longitude }));
           setLocation({ lat: latitude, lng: longitude });
+          setLocationError(false);
         },
-        (error) => console.error('Error getting location:', error)
+        (error) => {
+          console.error('Error getting location:', error.message);
+          setLocationError(true);
+          setFormData(prev => ({ 
+            ...prev, 
+            latitude: DEFAULT_LOCATION.latitude, 
+            longitude: DEFAULT_LOCATION.longitude 
+          }));
+          setLocation({ 
+            lat: DEFAULT_LOCATION.latitude, 
+            lng: DEFAULT_LOCATION.longitude 
+          });
+        }
       );
+    } else {
+      setLocationError(true);
+      setFormData(prev => ({ 
+        ...prev, 
+        latitude: DEFAULT_LOCATION.latitude, 
+        longitude: DEFAULT_LOCATION.longitude 
+      }));
+      setLocation({ 
+        lat: DEFAULT_LOCATION.latitude, 
+        lng: DEFAULT_LOCATION.longitude 
+      });
     }
   }, []);
 
@@ -70,20 +99,31 @@ const DispatcherSOS = () => {
     setLoading(true);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/emergencies/dispatcher`, {
+      // ✅ Use the correct API URL with fallback
+      const API_URL = import.meta.env.VITE_API_URL || 'https://emergency-backend-uzkq.onrender.com/api';
+      
+      const response = await fetch(`${API_URL}/emergencies/dispatcher`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
 
-      if (response.ok) {
-        const result = await response.json();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to submit SOS');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
         alert(`🚨 SOS Emergency sent!\nComplaint ID: ${result.complaintId}\n\n✅ Alert sent to:\n• Police 👮\n• Hospitals 🏥\n• Fire Brigade 🔥\n• Dispatchers 📋`);
         navigate(`/track/${result.complaintId}`);
+      } else {
+        throw new Error(result.message || 'Failed to submit SOS');
       }
     } catch (error) {
       console.error('Error submitting SOS:', error);
-      alert('Failed to submit SOS. Please try again.');
+      alert('❌ Failed to submit SOS. Please try again.\n\n' + error.message);
     } finally {
       setLoading(false);
     }
@@ -95,6 +135,7 @@ const DispatcherSOS = () => {
         const { lat, lng } = e.latlng;
         setFormData(prev => ({ ...prev, latitude: lat, longitude: lng }));
         setLocation({ lat, lng });
+        setLocationError(false);
       },
     });
     return location ? <Marker position={[location.lat, location.lng]} /> : null;
@@ -109,6 +150,14 @@ const DispatcherSOS = () => {
             <h2 className="text-3xl font-bold text-red-600 mt-2">SOS Emergency</h2>
             <p className="text-gray-600 text-sm">Auto-alert will be sent to Police, Hospitals & Dispatchers</p>
           </div>
+
+          {locationError && (
+            <div className="mb-4 bg-yellow-50 border border-yellow-400 rounded-lg p-3">
+              <p className="text-sm text-yellow-800">
+                📍 Location unavailable. Using default location (Ongole). Click on map to set your location.
+              </p>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
@@ -280,6 +329,30 @@ const DispatcherSOS = () => {
                   />
                   <LocationMarker />
                 </MapContainer>
+              </div>
+              <div className="mt-2 flex justify-between text-xs">
+                <span className="text-gray-500">
+                  Lat: {formData.latitude.toFixed(6)}, Lng: {formData.longitude.toFixed(6)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (navigator.geolocation) {
+                      navigator.geolocation.getCurrentPosition(
+                        (pos) => {
+                          const { latitude, longitude } = pos.coords;
+                          setFormData(prev => ({ ...prev, latitude, longitude }));
+                          setLocation({ lat: latitude, lng: longitude });
+                          setLocationError(false);
+                        },
+                        () => alert('📍 Please allow location access or click on map to set location.')
+                      );
+                    }
+                  }}
+                  className="text-blue-600 hover:text-blue-800"
+                >
+                  🔄 Get Current Location
+                </button>
               </div>
             </div>
 

@@ -2,9 +2,15 @@ import api from './axiosConfig';
 
 // Emergency API calls
 export const emergencyApi = {
-  // Create emergency report
-  create: async (data) => {
-    const response = await api.post('/emergencies', data);
+  // Citizen report
+  createCitizen: async (data) => {
+    const response = await api.post('/emergencies/citizen', data);
+    return response.data;
+  },
+  
+  // Dispatcher SOS
+  createDispatcher: async (data) => {
+    const response = await api.post('/emergencies/dispatcher', data);
     return response.data;
   },
   
