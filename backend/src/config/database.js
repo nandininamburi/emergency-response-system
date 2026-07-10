@@ -1,13 +1,33 @@
 const { db } = require('./firebase');
+const fs = require('fs');
+const path = require('path');
 
-// In-memory storage fallback
-const store = {
+const DATA_FILE = path.join(__dirname, '../../data.json');
+
+let store = {
   emergencies: [],
   nextId: 1
 };
 
+try {
+  if (fs.existsSync(DATA_FILE)) {
+    const data = fs.readFileSync(DATA_FILE, 'utf8');
+    store = JSON.parse(data);
+    console.log(`📂 Loaded ${store.emergencies.length} emergencies from data.json`);
+  }
+} catch (error) {
+  console.log('⚠️ No data file found, starting fresh');
+}
+
+const saveData = () => {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(store, null, 2));
+  } catch (error) {
+    console.error('❌ Failed to save data:', error);
+  }
+};
+
 const Database = {
-  // Create document
   async create(collection, data) {
     if (db) {
       try {
@@ -16,78 +36,17 @@ const Database = {
         return { id: docRef.id, ...doc.data() };
       } catch (error) {
         console.error('Firebase create error:', error.message);
-        // Fallback to in-memory
       }
     }
     
-    // In-memory fallback
     const id = String(store.nextId++);
     const doc = { id, ...data };
-    store.emergencies.push(doc);
+    if (!store[collection]) store[collection] = [];
+    store[collection].push(doc);
+    saveData();
     return doc;
   },
   
-  // Read document
-  async read(collection, id) {
-    if (db) {
-      try {
-        const doc = await db.collection(collection).doc(id).get();
-        if (!doc.exists) return null;
-        return { id: doc.id, ...doc.data() };
-      } catch (error) {
-        console.error('Firebase read error:', error.message);
-      }
-    }
-    
-    // In-memory fallback
-    const doc = store.emergencies.find(e => e.id === id || e._id === id);
-    return doc || null;
-  },
-  
-  // Update document
-  async update(collection, id, data) {
-    if (db) {
-      try {
-        await db.collection(collection).doc(id).update({
-          ...data,
-          updatedAt: new Date().toISOString()
-        });
-        return this.read(collection, id);
-      } catch (error) {
-        console.error('Firebase update error:', error.message);
-      }
-    }
-    
-    // In-memory fallback
-    const index = store.emergencies.findIndex(e => e.id === id || e._id === id);
-    if (index !== -1) {
-      store.emergencies[index] = { 
-        ...store.emergencies[index], 
-        ...data,
-        updatedAt: new Date().toISOString()
-      };
-      return store.emergencies[index];
-    }
-    return null;
-  },
-  
-  // Delete document
-  async delete(collection, id) {
-    if (db) {
-      try {
-        await db.collection(collection).doc(id).delete();
-        return true;
-      } catch (error) {
-        console.error('Firebase delete error:', error.message);
-      }
-    }
-    
-    // In-memory fallback
-    store.emergencies = store.emergencies.filter(e => e.id !== id && e._id !== id);
-    return true;
-  },
-  
-  // Query documents
   async query(collection, conditions = [], orderBy = null) {
     if (db) {
       try {
@@ -105,25 +64,64 @@ const Database = {
       }
     }
     
-    // In-memory fallback
-    let results = [...store.emergencies];
+    let results = store[collection] ? [...store[collection]] : [];
     conditions.forEach(condition => {
       results = results.filter(item => {
         if (condition.op === '==') return item[condition.field] === condition.value;
-        if (condition.op === '>') return item[condition.field] > condition.value;
-        if (condition.op === '<') return item[condition.field] < condition.value;
         return true;
       });
     });
     if (orderBy) {
       results.sort((a, b) => {
-        if (orderBy.direction === 'desc') {
-          return b[orderBy.field] > a[orderBy.field] ? 1 : -1;
-        }
-        return a[orderBy.field] > b[orderBy.field] ? 1 : -1;
+        const aVal = a[orderBy.field] || '';
+        const bVal = b[orderBy.field] || '';
+        if (orderBy.direction === 'desc') return bVal > aVal ? 1 : -1;
+        return aVal > bVal ? 1 : -1;
       });
     }
     return results;
+  },
+  
+  async update(collection, id, data) {
+    if (db) {
+      try {
+        await db.collection(collection).doc(id).update({
+          ...data,
+          updatedAt: new Date().toISOString()
+        });
+        const doc = await db.collection(collection).doc(id).get();
+        return { id: doc.id, ...doc.data() };
+      } catch (error) {
+        console.error('Firebase update error:', error.message);
+      }
+    }
+    
+    const docs = store[collection] || [];
+    const index = docs.findIndex(e => e.id === id || e._id === id);
+    if (index !== -1) {
+      docs[index] = { ...docs[index], ...data, updatedAt: new Date().toISOString() };
+      saveData();
+      return docs[index];
+    }
+    return null;
+  },
+  
+  async delete(collection, id) {
+    if (db) {
+      try {
+        await db.collection(collection).doc(id).delete();
+        return true;
+      } catch (error) {
+        console.error('Firebase delete error:', error.message);
+      }
+    }
+    
+    if (store[collection]) {
+      store[collection] = store[collection].filter(e => e.id !== id && e._id !== id);
+      saveData();
+      return true;
+    }
+    return true;
   }
 };
 

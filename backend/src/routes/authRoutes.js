@@ -16,7 +16,11 @@ router.post('/logout', authController.logout);
 
 // ✅ Test route
 router.get('/test', (req, res) => {
-  res.json({ message: 'Auth routes are working!' });
+  res.json({ 
+    success: true, 
+    message: 'Auth routes are working!',
+    timestamp: new Date().toISOString()
+  });
 });
 
 module.exports = router;

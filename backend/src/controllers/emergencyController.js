@@ -2,13 +2,18 @@ const Emergency = require('../models/Emergency');
 const aiService = require('../services/aiService');
 const notificationService = require('../services/notificationService');
 
-// Create emergency (Citizen form)
+// ✅ Create citizen emergency
 exports.createCitizenEmergency = async (req, res) => {
   try {
-    const { description, name, phone, emergencyType } = req.body;
+    console.log('📝 Creating citizen emergency...');
+    
+    const { name, phone, description, emergencyType, latitude, longitude } = req.body;
     
     if (!description) {
-      return res.status(400).json({ error: 'Description is required' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Description is required' 
+      });
     }
     
     // AI Classification
@@ -16,61 +21,60 @@ exports.createCitizenEmergency = async (req, res) => {
     if (description && description.length > 10) {
       try {
         aiPrediction = await aiService.classifyEmergency(description);
+        console.log('🤖 AI Prediction:', aiPrediction);
       } catch (error) {
         console.error('AI classification failed:', error);
       }
     }
     
-    const emergency = new Emergency({
-      ...req.body,
+    const emergencyData = {
       reportType: 'citizen',
       reporterRole: 'citizen',
       reporterName: name || 'Anonymous',
-      aiPrediction,
+      name: name || 'Anonymous',
+      phone: phone || '',
+      description: description,
+      emergencyType: emergencyType || 'Other',
+      latitude: latitude || 12.9716,
+      longitude: longitude || 77.5946,
+      aiPrediction: aiPrediction || null,
       status: 'Pending',
+      priority: aiPrediction?.priority || 'Medium',
       timestamp: new Date().toISOString(),
-      priority: aiPrediction?.priority || 'Medium'
-    });
+      createdAt: new Date().toISOString()
+    };
     
+    const emergency = new Emergency(emergencyData);
     const result = await emergency.save();
     
-    // Send auto-alerts to dispatchers and hospitals
+    console.log('✅ Emergency saved:', result.complaintId);
+    
+    // Send notifications
     await notificationService.sendAutoAlerts(result);
     
     res.status(201).json({
       success: true,
       complaintId: result.complaintId,
-      emergencyId: result.id,
       message: 'Emergency reported successfully',
-      aiPrediction,
-      emergency: result
+      aiPrediction: aiPrediction || null
     });
+    
   } catch (error) {
-    console.error('Error creating emergency:', error);
-    res.status(500).json({ error: error.message });
+    console.error('❌ Error creating emergency:', error);
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to report emergency'
+    });
   }
 };
 
-// Create emergency (Dispatcher form - SOS)
+// ✅ Create dispatcher emergency (SOS)
 exports.createDispatcherEmergency = async (req, res) => {
   try {
-    const { 
-      dispatcherName, 
-      dispatcherPhone, 
-      dispatcherAge,
-      emergencyType,
-      description,
-      latitude,
-      longitude,
-      bloodGroup,
-      aadhar,
-      address,
-      emergencyContact,
-      emergencyContactPhone,
-      allergies
-    } = req.body;
+    console.log('📝 Creating dispatcher emergency (SOS)...');
     
-    // ✅ Validate required fields
+    const { dispatcherName, dispatcherPhone, emergencyType, description, latitude, longitude, bloodGroup } = req.body;
+    
     if (!dispatcherName || !dispatcherPhone) {
       return res.status(400).json({ 
         success: false,
@@ -78,24 +82,23 @@ exports.createDispatcherEmergency = async (req, res) => {
       });
     }
     
-    // AI Classification for dispatcher reports
+    // AI Classification
     let aiPrediction = null;
     if (description && description.length > 10) {
       try {
         aiPrediction = await aiService.classifyEmergency(description);
+        console.log('🤖 AI Prediction:', aiPrediction);
       } catch (error) {
         console.error('AI classification failed:', error);
       }
     }
     
-    // ✅ Create emergency with all fields
-    const emergency = new Emergency({
+    const emergencyData = {
       reportType: 'dispatcher',
       reporterRole: 'dispatcher',
       reporterName: dispatcherName,
       dispatcherName: dispatcherName,
       dispatcherPhone: dispatcherPhone,
-      dispatcherAge: dispatcherAge || null,
       name: dispatcherName,
       phone: dispatcherPhone,
       emergencyType: emergencyType || 'Other',
@@ -103,187 +106,250 @@ exports.createDispatcherEmergency = async (req, res) => {
       latitude: latitude || 12.9716,
       longitude: longitude || 77.5946,
       bloodGroup: bloodGroup || null,
-      aadhar: aadhar || null,
-      address: address || null,
-      emergencyContact: emergencyContact || null,
-      emergencyContactPhone: emergencyContactPhone || null,
-      allergies: allergies || null,
       aiPrediction: aiPrediction || null,
       status: 'Pending',
-      priority: 'Critical', // SOS is always Critical priority
-      timestamp: new Date().toISOString()
-    });
+      priority: 'Critical',
+      timestamp: new Date().toISOString(),
+      createdAt: new Date().toISOString()
+    };
     
-    // ✅ Save to database
+    const emergency = new Emergency(emergencyData);
     const result = await emergency.save();
     
-    // ✅ Send immediate auto-alerts
+    console.log('✅ SOS Emergency saved:', result.complaintId);
+    
+    // Send urgent alerts
     await notificationService.sendAutoAlerts(result);
-    await notificationService.notifyNearbyHospitals(result);
     await notificationService.sendSOSAlerts(result);
     
-    // ✅ Return success response
     res.status(201).json({
       success: true,
-      complaintId: result.complaintId || result.id,
-      emergencyId: result.id,
-      message: '🚨 SOS Emergency reported successfully! Alert sent to authorities.',
-      aiPrediction: aiPrediction || null,
-      emergency: result
+      complaintId: result.complaintId,
+      message: '🚨 SOS Emergency reported successfully!',
+      aiPrediction: aiPrediction || null
     });
     
   } catch (error) {
     console.error('❌ Error creating dispatcher emergency:', error);
     res.status(500).json({ 
       success: false,
-      error: error.message,
-      message: 'Failed to submit SOS emergency. Please try again.'
+      error: error.message || 'Failed to submit SOS emergency'
     });
   }
 };
 
-// Get all emergencies (FIFO)
+// ✅ Get all emergencies
 exports.getAllEmergencies = async (req, res) => {
   try {
     const emergencies = await Emergency.getAll();
-    res.json(emergencies);
+    res.json({
+      success: true,
+      count: emergencies.length,
+      data: emergencies
+    });
   } catch (error) {
     console.error('Error fetching emergencies:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to fetch emergencies'
+    });
   }
 };
 
-// Get latest emergencies (for dashboard)
+// ✅ Get latest emergencies
 exports.getLatestEmergencies = async (req, res) => {
   try {
+    const limit = parseInt(req.query.limit) || 10;
     const emergencies = await Emergency.getLatest();
-    res.json(emergencies);
+    const latest = emergencies.slice(0, limit);
+    
+    res.json({
+      success: true,
+      count: latest.length,
+      data: latest
+    });
   } catch (error) {
     console.error('Error fetching latest emergencies:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to fetch latest emergencies'
+    });
   }
 };
 
-// Get emergency by Complaint ID
+// ✅ Get emergency by ID
 exports.getEmergencyById = async (req, res) => {
   try {
     const { id } = req.params;
     
     if (!id) {
-      return res.status(400).json({ error: 'Complaint ID is required' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Complaint ID is required' 
+      });
     }
     
     const emergency = await Emergency.getByComplaintId(id);
     
     if (!emergency) {
-      return res.status(404).json({ error: 'Emergency not found' });
+      return res.status(404).json({ 
+        success: false,
+        error: 'Emergency not found' 
+      });
     }
-    res.json(emergency);
+    
+    res.json({
+      success: true,
+      data: emergency
+    });
   } catch (error) {
     console.error('Error fetching emergency:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to fetch emergency'
+    });
   }
 };
 
-// Update emergency status
+// ✅ Update emergency
 exports.updateEmergency = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
     
     if (!id) {
-      return res.status(400).json({ error: 'Complaint ID is required' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Complaint ID is required' 
+      });
     }
     
+    updates.updatedAt = new Date().toISOString();
     const emergency = await Emergency.update(id, updates);
     
     if (!emergency) {
-      return res.status(404).json({ error: 'Emergency not found' });
-    }
-    
-    // Notify citizen about status update
-    if (emergency && emergency.phone) {
-      await notificationService.notifyCitizen(emergency);
+      return res.status(404).json({ 
+        success: false,
+        error: 'Emergency not found' 
+      });
     }
     
     res.json({ 
       success: true, 
       message: 'Emergency updated successfully',
-      status: updates.status,
-      complaintId: emergency.complaintId,
-      emergency
+      data: emergency
     });
   } catch (error) {
     console.error('Error updating emergency:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to update emergency'
+    });
   }
 };
 
-// Assign officer
+// ✅ Assign officer
 exports.assignOfficer = async (req, res) => {
   try {
     const { id } = req.params;
     const { officerId, officerName } = req.body;
     
     if (!id) {
-      return res.status(400).json({ error: 'Complaint ID is required' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Complaint ID is required' 
+      });
     }
     
-    const emergency = await Emergency.update(id, {
+    const updates = {
       assignedOfficer: officerName || 'Officer',
       officerId: officerId || 'OFF-001',
       status: 'Assigned',
       assignedAt: new Date().toISOString()
-    });
+    };
+    
+    const emergency = await Emergency.update(id, updates);
     
     if (!emergency) {
-      return res.status(404).json({ error: 'Emergency not found' });
+      return res.status(404).json({ 
+        success: false,
+        error: 'Emergency not found' 
+      });
     }
-    
-    await notificationService.notifyOfficer({ name: officerName, id: officerId }, emergency);
     
     res.json({
       success: true,
       message: 'Officer assigned successfully',
-      complaintId: emergency.complaintId,
-      emergency
+      data: emergency
     });
   } catch (error) {
     console.error('Error assigning officer:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to assign officer'
+    });
   }
 };
 
-// Get emergencies by status
+// ✅ Get by status
 exports.getEmergenciesByStatus = async (req, res) => {
   try {
     const { status } = req.params;
     
     if (!status) {
-      return res.status(400).json({ error: 'Status is required' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Status is required' 
+      });
     }
     
     const emergencies = await Emergency.getByStatus(status);
-    res.json(emergencies);
+    
+    res.json({
+      success: true,
+      count: emergencies.length,
+      data: emergencies
+    });
   } catch (error) {
     console.error('Error fetching emergencies by status:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to fetch emergencies'
+    });
   }
 };
 
-// Delete emergency
+// ✅ Delete emergency
 exports.deleteEmergency = async (req, res) => {
   try {
     const { id } = req.params;
     
     if (!id) {
-      return res.status(400).json({ error: 'Complaint ID is required' });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Complaint ID is required' 
+      });
     }
     
-    await Emergency.delete(id);
-    res.json({ success: true, message: 'Emergency deleted successfully' });
+    const emergency = await Emergency.getByComplaintId(id);
+    if (!emergency) {
+      return res.status(404).json({ 
+        success: false,
+        error: 'Emergency not found' 
+      });
+    }
+    
+    await Emergency.delete(emergency.id);
+    
+    res.json({ 
+      success: true, 
+      message: 'Emergency deleted successfully'
+    });
   } catch (error) {
     console.error('Error deleting emergency:', error);
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ 
+      success: false,
+      error: error.message || 'Failed to delete emergency'
+    });
   }
 };

@@ -1,14 +1,7 @@
 import React from "react";
-import {
-  BrowserRouter as Router,
-  Routes,
-  Route,
-  Navigate,
-} from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
-import CitizenNavbar from "./components/CitizenNavbar";
-import PoliceNavbar from "./components/PoliceNavbar";
 import Footer from "./components/Footer";
 import Home from "./pages/Home";
 import ReportEmergency from "./pages/ReportEmergency";
@@ -22,7 +15,7 @@ import Register from "./pages/Register";
 import DispatcherSOS from "./pages/DispatcherSOS";
 import "./index.css";
 
-const NavbarSelector = () => {
+const App = () => {
   const [userRole, setUserRole] = React.useState("guest");
   const [isLoggedIn, setIsLoggedIn] = React.useState(false);
 
@@ -55,30 +48,11 @@ const NavbarSelector = () => {
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
-  // ✅ Guest gets Navbar (Login/Register only)
-  if (!isLoggedIn) {
-    return <Navbar />;
-  }
-  
-  // ✅ Citizen gets CitizenNavbar
-  if (userRole === "citizen" || userRole === "dispatcher") {
-    return <CitizenNavbar />;
-  }
-  
-  // ✅ Police gets PoliceNavbar
-  if (userRole === "police") {
-    return <PoliceNavbar />;
-  }
-  
-  return <Navbar />;
-};
-
-function App() {
   return (
     <AuthProvider>
       <Router>
         <div className="flex flex-col min-h-screen">
-          <NavbarSelector />
+          <Navbar />
           <main className="flex-grow">
             <Routes>
               {/* Public Routes */}
@@ -100,10 +74,8 @@ function App() {
               <Route path="/police/reports" element={<PoliceReports />} />
               <Route path="/police/sos" element={<PoliceSOS />} />
 
-              {/* Redirect old routes */}
-              <Route path="/police/map" element={<Navigate to="/police" replace />} />
-              <Route path="/police/cases" element={<Navigate to="/police/reports" replace />} />
-              <Route path="/police/*" element={<Navigate to="/police" replace />} />
+              {/* Redirect */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
           <Footer />
@@ -111,6 +83,6 @@ function App() {
       </Router>
     </AuthProvider>
   );
-}
+};
 
 export default App;

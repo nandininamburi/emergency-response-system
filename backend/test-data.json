@@ -1,0 +1,13 @@
+[
+  {
+    "name": "Test Citizen",
+    "phone": "9876543210",
+    "email": "test@email.com",
+    "emergencyType": "Medical",
+    "description": "Test emergency for API testing",
+    "latitude": 12.9716,
+    "longitude": 77.5946,
+    "status": "Pending",
+    "priority": "High"
+  }
+]

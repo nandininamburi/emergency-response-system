@@ -2,31 +2,17 @@ const express = require('express');
 const router = express.Router();
 const emergencyController = require('../controllers/emergencyController');
 
-// ✅ Citizen reports
-router.post('/citizen', emergencyController.createCitizenEmergency);
-
-// ✅ Dispatcher SOS reports
-router.post('/dispatcher', emergencyController.createDispatcherEmergency);
-
-// ✅ Get all emergencies (FIFO)
+// ✅ Public routes
 router.get('/', emergencyController.getAllEmergencies);
-
-// ✅ Get latest emergencies
 router.get('/latest', emergencyController.getLatestEmergencies);
-
-// ✅ Get emergency by complaint ID
+router.get('/status/:status', emergencyController.getEmergenciesByStatus);
 router.get('/:id', emergencyController.getEmergencyById);
 
-// ✅ Update emergency status
+// ✅ Protected routes (with simple auth check)
+router.post('/citizen', emergencyController.createCitizenEmergency);
+router.post('/dispatcher', emergencyController.createDispatcherEmergency);
 router.put('/:id', emergencyController.updateEmergency);
-
-// ✅ Assign officer
 router.post('/:id/assign', emergencyController.assignOfficer);
-
-// ✅ Get by status
-router.get('/status/:status', emergencyController.getEmergenciesByStatus);
-
-// ✅ Delete emergency
 router.delete('/:id', emergencyController.deleteEmergency);
 
 module.exports = router;

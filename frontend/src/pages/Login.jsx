@@ -305,4 +305,134 @@ const Login = () => {
   );
 };
 
+export default Login;import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { authApi } from '../services/api';
+
+const Login = () => {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const loggedIn = localStorage.getItem('isLoggedIn');
+    if (loggedIn === 'true') {
+      navigate('/');
+    }
+  }, [navigate]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const response = await authApi.login(email, password);
+      
+      if (response.success) {
+        localStorage.setItem('user', JSON.stringify(response));
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('authToken', response.token || 'demo-token');
+        
+        // Redirect based on role
+        if (response.role === 'police') {
+          navigate('/police');
+        } else if (response.role === 'dispatcher') {
+          navigate('/dispatcher');
+        } else {
+          navigate('/');
+        }
+      } else {
+        setError(response.error || 'Login failed');
+      }
+    } catch (err) {
+      setError('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center py-12 px-4">
+      <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-8 text-center">
+          <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <span className="text-4xl">🚨</span>
+          </div>
+          <h1 className="text-2xl font-bold text-white">Welcome Back!</h1>
+          <p className="text-blue-100 text-sm">Sign in to access your dashboard</p>
+        </div>
+
+        <div className="px-6 py-8">
+          {error && (
+            <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg">
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Email Address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your@email.com"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-lg transform hover:scale-[1.02] transition disabled:opacity-50"
+            >
+              {loading ? 'Loading...' : 'Sign In'}
+            </button>
+          </form>
+
+          <div className="text-center mt-6">
+            <Link to="/register" className="text-sm text-gray-600 hover:text-blue-600">
+              Don't have an account? <span className="font-medium text-blue-600">Sign up</span>
+            </Link>
+          </div>
+
+          <div className="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-200">
+            <p className="text-xs text-gray-500 text-center font-medium">🔑 Demo Credentials</p>
+            <div className="text-xs text-gray-600 mt-1 space-y-1">
+              <div className="flex justify-between">
+                <span>👮 Police</span>
+                <span className="text-blue-600">police@system.com / password</span>
+              </div>
+              <div className="flex justify-between">
+                <span>🖥️ Dispatcher</span>
+                <span className="text-blue-600">dispatcher@system.com / password</span>
+              </div>
+              <div className="flex justify-between">
+                <span>👤 Citizen</span>
+                <span className="text-blue-600">any@email.com / password</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default Login;

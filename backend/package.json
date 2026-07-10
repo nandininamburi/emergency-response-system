@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "nodemon src/index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "seed": "node src/seed.js",
+    "test": "node src/test.js",
+    "test-all": "node src/test-all.js",
+    "firebase-setup": "node src/firebase-setup.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
