@@ -11,17 +11,13 @@ dotenv.config({ path: path.join(__dirname, '../.env') });
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ CORS Configuration - Allow all origins for production
+// ✅ CORS Configuration - Proper way
 app.use(cors({
-  origin: '*', // Allow all origins for now
+  origin: '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
-  exposedHeaders: ['Content-Length', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
 }));
-
-// ✅ Handle preflight requests
-app.options('*', cors());
 
 // Middleware
 app.use(express.json({ limit: '50mb' }));
