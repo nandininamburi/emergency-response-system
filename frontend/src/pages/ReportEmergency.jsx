@@ -149,9 +149,24 @@ const ReportEmergency = () => {
     setLoading(true);
 
     try {
-      // ✅ Use localhost for development, fallback to deployed
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
       
+      console.log('📡 Using API URL:', API_URL);
+      
+      // ✅ Generate a default description if empty
+      let finalDescription = formData.description.trim();
+      if (!finalDescription) {
+        const emergencyTypeMap = {
+          'Accident': 'Road accident reported at location',
+          'Fire': 'Fire emergency reported at location',
+          'Crime': 'Crime reported at location',
+          'Medical': 'Medical emergency reported at location',
+          'Other': 'Emergency reported at location'
+        };
+        finalDescription = emergencyTypeMap[formData.emergencyType] || 'Emergency reported at location';
+        console.log('📝 Using default description:', finalDescription);
+      }
+
       // ✅ Check if backend is reachable
       try {
         const healthCheck = await fetch(`${API_URL}/health`, {
@@ -159,80 +174,76 @@ const ReportEmergency = () => {
           headers: { 'Content-Type': 'application/json' },
         });
         if (!healthCheck.ok) {
-          throw new Error('Backend not reachable');
+          throw new Error('Backend health check failed');
         }
         console.log('✅ Backend is reachable');
       } catch (healthError) {
-        console.warn('⚠️ Backend health check failed, trying localhost...');
-        // Try localhost as fallback
-        if (API_URL.includes('render.com')) {
-          // If deployed backend fails, try local
-          const localAPI = 'http://localhost:5000/api';
-          console.log('🔄 Trying local backend...');
-          const localHealth = await fetch(`${localAPI}/health`);
-          if (localHealth.ok) {
-            // Use local API
-            await submitEmergency(localAPI);
-            return;
-          }
-        }
-        throw new Error('Cannot connect to backend server');
+        console.error('❌ Backend health check failed:', healthError);
+        throw new Error('Cannot connect to backend server. Please check if the server is running.');
       }
 
-      await submitEmergency(API_URL);
+      // ✅ Convert voice blob to base64 if exists
+      let voiceBase64 = null;
+      if (voiceBlob) {
+        voiceBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(voiceBlob);
+        });
+      }
 
-    } catch (error) {
-      console.error('Error submitting report:', error);
-      alert(`❌ Failed to submit report.\n\nError: ${error.message}\n\n💡 Make sure the backend server is running on http://localhost:5000`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      // ✅ Convert image to base64 if exists
+      let imageBase64 = null;
+      if (imageFile) {
+        imageBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(imageFile);
+        });
+      }
 
-  // ✅ Separate function for submission
-  const submitEmergency = async (API_URL) => {
-    let voiceBase64 = null;
-    if (voiceBlob) {
-      voiceBase64 = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(voiceBlob);
-      });
-    }
-
-    let imageBase64 = null;
-    if (imageFile) {
-      imageBase64 = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(imageFile);
-      });
-    }
-
-    const response = await fetch(`${API_URL}/emergencies/citizen`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...formData,
+      // ✅ Prepare request body with default description if needed
+      const requestBody = {
+        name: formData.name || 'Anonymous',
+        phone: formData.phone || 'N/A',
+        emergencyType: formData.emergencyType || 'Other',
+        description: finalDescription,
+        latitude: formData.latitude || DEFAULT_LOCATION.latitude,
+        longitude: formData.longitude || DEFAULT_LOCATION.longitude,
         reportType: 'citizen',
         reporterRole: 'citizen',
         voiceMessage: voiceBase64,
         photo: imageBase64
-      })
-    });
+      };
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to submit report');
-    }
+      console.log('📤 Sending request:', requestBody);
 
-    const result = await response.json();
-    
-    if (result.success) {
-      alert(`✅ Emergency reported!\nComplaint ID: ${result.complaintId}`);
-      navigate(`/track/${result.complaintId}`);
-    } else {
-      throw new Error(result.message || 'Failed to submit report');
+      // ✅ Submit the report
+      const response = await fetch(`${API_URL}/emergencies/citizen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Server error response:', errorData);
+        throw new Error(errorData.message || errorData.error || 'Failed to submit report');
+      }
+
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`✅ Emergency reported!\nComplaint ID: ${result.complaintId}`);
+        navigate(`/track/${result.complaintId}`);
+      } else {
+        throw new Error(result.message || 'Failed to submit report');
+      }
+    } catch (error) {
+      console.error('❌ Error submitting report:', error);
+      alert(`❌ Failed to submit report.\n\nError: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -261,7 +272,7 @@ const ReportEmergency = () => {
           {locationError && (
             <div className="mb-4 bg-yellow-50 border border-yellow-400 rounded-lg p-3">
               <p className="text-sm text-yellow-800">
-                📍 Location unavailable. Using default location (Ongole). Click on map to set your location.
+                📍 Location unavailable. Using default location. Click on map to set your location.
               </p>
             </div>
           )}
@@ -313,7 +324,7 @@ const ReportEmergency = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Description (Optional)
+                Description <span className="text-gray-400 text-xs">(Optional - will auto-fill if empty)</span>
               </label>
               <textarea
                 name="description"
@@ -323,13 +334,15 @@ const ReportEmergency = () => {
                 placeholder="Describe what happened (optional)..."
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
               />
-              <p className="text-xs text-gray-400 mt-1">💡 You can skip this and use voice message instead</p>
+              <p className="text-xs text-gray-400 mt-1">
+                💡 If left empty, a default description will be used based on emergency type
+              </p>
             </div>
 
             {/* Voice Message Section */}
             <div className="border rounded-lg p-4 bg-gray-50">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                🎙️ Voice Message (For uneducated users - speak instead of type)
+                🎙️ Voice Message (Speak instead of type)
               </label>
               <div className="flex items-center gap-4">
                 {!isRecording ? (
@@ -371,14 +384,14 @@ const ReportEmergency = () => {
                 )}
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                {isRecording ? '🔴 Recording... Speak clearly' : 'Click to record your emergency message (Max 30 seconds)'}
+                {isRecording ? '🔴 Recording... Speak clearly' : 'Click to record your emergency message'}
               </p>
             </div>
 
             {/* Image Upload Section */}
             <div className="border rounded-lg p-4 bg-gray-50">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                📸 Photo / Video Upload (For proof)
+                📸 Photo Upload (For proof)
               </label>
               <div className="flex items-center gap-4 flex-wrap">
                 <input

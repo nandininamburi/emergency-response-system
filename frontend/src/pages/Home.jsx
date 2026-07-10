@@ -207,7 +207,7 @@ const Home = () => {
         reporterRole: 'citizen'
       };
       
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const API_URL = import.meta.env.VITE_API_URL || 'https://emergency-backend-uzkq.onrender.com/api';
       
       const response = await fetch(`${API_URL}/emergencies/citizen`, {
         method: 'POST',

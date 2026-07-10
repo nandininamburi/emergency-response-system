@@ -31,16 +31,39 @@ const TrackComplaint = () => {
     setError('');
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://emergency-backend-uzkq.onrender.com/api';
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      console.log('📡 Tracking complaint:', complaintId.trim());
+      console.log('📡 API URL:', apiUrl);
+      
       const response = await axios.get(
         `${apiUrl}/emergencies/${complaintId.trim()}`
       );
-      setComplaint(response.data);
-      if (response.data.complaintId) {
-        setComplaintId(response.data.complaintId);
+      
+      console.log('📡 Response:', response.data);
+      
+      // ✅ Handle both response formats
+      let complaintData = response.data;
+      if (response.data.success && response.data.data) {
+        complaintData = response.data.data;
+      } else if (response.data.data) {
+        complaintData = response.data.data;
+      }
+      
+      if (complaintData && complaintData.complaintId) {
+        setComplaint(complaintData);
+        setComplaintId(complaintData.complaintId);
+      } else if (complaintData && complaintData.id) {
+        setComplaint(complaintData);
+        setComplaintId(complaintData.id);
+      } else {
+        throw new Error('Invalid complaint data received');
       }
     } catch (err) {
-      console.error('Track error:', err);
+      console.error('❌ Track error:', err);
+      if (err.response) {
+        console.error('❌ Response status:', err.response.status);
+        console.error('❌ Response data:', err.response.data);
+      }
       setError('Complaint not found. Please check the ID and try again.');
       setComplaint(null);
     } finally {
@@ -80,7 +103,7 @@ const TrackComplaint = () => {
 
   const getStatusSteps = () => {
     const steps = ['Pending', 'Assigned', 'On Route', 'Resolved'];
-    if (!complaint) return steps;
+    if (!complaint) return steps.map(step => ({ step, completed: false, active: false }));
     
     const currentIndex = steps.indexOf(complaint.status);
     return steps.map((step, index) => ({
