@@ -8,9 +8,6 @@ const Home = () => {
   const [isHolding, setIsHolding] = useState(false);
   const [holdProgress, setHoldProgress] = useState(0);
   const [direction, setDirection] = useState(null);
-  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
-  const [selectedEmergency, setSelectedEmergency] = useState(null);
-  const [description, setDescription] = useState('');
   const holdTimerRef = useRef(null);
   const startXRef = useRef(0);
   const startYRef = useRef(0);
@@ -55,50 +52,46 @@ const Home = () => {
     { 
       id: 'up', 
       label: '🔥 Fire', 
-      // icon: '🔥',
       textColor: 'text-orange-600',
       emergencyType: 'Fire', 
       x: 0, 
       y: -95,
       arrow: '↑',
-      defaultDescription: 'Fire reported at location'
+      icon: '🔥'
     },
     { 
       id: 'right', 
       label: '🚗 Accident', 
-      // icon: '🚗',
       textColor: 'text-red-600',
       emergencyType: 'Accident', 
       x: 95, 
       y: 0,
       arrow: '→',
-      defaultDescription: 'Road accident reported at location'
+      icon: '🚗'
     },
     { 
       id: 'down', 
       label: '🩺 Medical', 
-      // icon: '🩺',
       textColor: 'text-green-600',
       emergencyType: 'Medical', 
       x: 0, 
       y: 95,
       arrow: '↓',
-      defaultDescription: 'Medical emergency reported at location'
+      icon: '🩺'
     },
     { 
       id: 'left', 
       label: '🚨 Crime', 
-      // icon: '🚨',
       textColor: 'text-purple-600',
       emergencyType: 'Crime', 
       x: -95, 
       y: 0,
       arrow: '←',
-      defaultDescription: 'Crime reported at location'
+      icon: '🚨'
     },
   ];
 
-  // ✅ SOS Button Handlers - FIXED
+  // ✅ SOS Button Handlers
   const handlePointerDown = (e) => {
     e.preventDefault();
     const clientX = e.clientX || e.touches?.[0]?.clientX || 0;
@@ -126,13 +119,12 @@ const Home = () => {
     clearInterval(holdTimerRef.current);
     setIsHolding(false);
     
+    // ✅ If hold completed and direction selected -> AUTO SEND
     if (holdProgress >= 100 && direction) {
-      // Show description modal
       const selected = sosOptions.find(opt => opt.id === direction);
       if (selected) {
-        setSelectedEmergency(selected);
-        setDescription(selected.defaultDescription || '');
-        setShowDescriptionModal(true);
+        // Auto send immediately - NO MODAL
+        handleAutoSOSSubmit(selected);
         setDirection(null);
         setHoldProgress(0);
       }
@@ -195,8 +187,8 @@ const Home = () => {
     }
   };
 
-  // ✅ Submit SOS Emergency with Description
-  const handleSOSSubmit = async (emergencyType, icon, customDescription) => {
+  // ✅ AUTO SEND SOS - No Modal, No Confirmation
+  const handleAutoSOSSubmit = async (selected) => {
     if (loading) return;
     setLoading(true);
 
@@ -206,8 +198,8 @@ const Home = () => {
       const emergencyData = {
         name: userData.fullName || userData.name || 'Anonymous',
         phone: userData.phone || 'N/A',
-        emergencyType: emergencyType,
-        description: customDescription || `${emergencyType} reported via SOS gesture`,
+        emergencyType: selected.emergencyType,
+        description: `${selected.emergencyType} reported via SOS gesture`,
         latitude: location.latitude,
         longitude: location.longitude,
         priority: 'High',
@@ -231,19 +223,19 @@ const Home = () => {
       const result = await response.json();
       
       if (result.success) {
-        alert(`✅ ${icon} Emergency reported!\nType: ${emergencyType}\nComplaint ID: ${result.complaintId}\n\n📍 Location: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`);
+        // ✅ Show simple success alert and navigate
+        alert(`✅ ${selected.emergencyType} Emergency Reported!\nComplaint ID: ${result.complaintId}\n\n📍 Location: ${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`);
         navigate(`/track/${result.complaintId}`);
       } else {
         throw new Error(result.message || 'Failed to report emergency');
       }
     } catch (error) {
       console.error('Error reporting emergency:', error);
-      alert('❌ Failed to report emergency. Please try again.\n\n' + error.message);
+      alert(`❌ Failed to report ${selected.emergencyType} emergency.\n\nPlease try again or use the report form.`);
     } finally {
       setLoading(false);
-      setShowDescriptionModal(false);
-      setSelectedEmergency(null);
-      setDescription('');
+      setDirection(null);
+      setHoldProgress(0);
     }
   };
 
@@ -253,107 +245,6 @@ const Home = () => {
   };
 
   const selected = getSelectedEmergency();
-
-  // ✅ Description Modal
-  const DescriptionModal = () => {
-    if (!showDescriptionModal || !selectedEmergency) return null;
-
-    const getEmergencyEmoji = () => {
-      const emojis = {
-        'Fire': '🔥',
-        'Accident': '🚗',
-        'Medical': '🩺',
-        'Crime': '🚨'
-      };
-      return emojis[selectedEmergency.emergencyType] || '🆘';
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => {}}>
-        <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-          <div className="p-6">
-            <div className="text-center mb-4">
-              <span className="text-5xl block mb-2">{getEmergencyEmoji()}</span>
-              <h2 className="text-2xl font-bold text-gray-900">
-                {selectedEmergency.emergencyType} Emergency
-              </h2>
-              <p className="text-gray-600 text-sm">Add details about the emergency (optional)</p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  📍 Location
-                </label>
-                <div className="bg-gray-50 rounded-lg p-2 text-sm text-gray-600">
-                  <span className="font-medium">Lat:</span> {location.latitude.toFixed(6)}
-                  <span className="ml-3 font-medium">Lng:</span> {location.longitude.toFixed(6)}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  📝 Description <span className="text-gray-400 text-xs">(Optional)</span>
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows="4"
-                  placeholder="Describe what happened (optional)..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  💡 You can leave this blank or add more details
-                </p>
-              </div>
-
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowDescriptionModal(false);
-                    setSelectedEmergency(null);
-                    setDescription('');
-                    setDirection(null);
-                    setHoldProgress(0);
-                  }}
-                  className="flex-1 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => handleSOSSubmit(
-                    selectedEmergency.emergencyType,
-                    selectedEmergency.icon,
-                    description || selectedEmergency.defaultDescription || `${selectedEmergency.emergencyType} reported at location`
-                  )}
-                  disabled={loading}
-                  className="flex-1 py-3 bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold rounded-xl hover:shadow-lg transform hover:scale-[1.02] transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Sending...
-                    </>
-                  ) : (
-                    <>
-                      🚨 Report {selectedEmergency.emergencyType}
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <p className="text-xs text-gray-400 text-center">
-                🆘 This will send an alert to Police, Hospitals, and Fire Brigade
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
@@ -376,7 +267,7 @@ const Home = () => {
           </p>
         </div>
 
-        {/* ✅ Plus Shape SOS - FIXED */}
+        {/* ✅ Plus Shape SOS - Auto Send */}
         <div className="flex justify-center my-8">
           <div 
             ref={sosContainerRef}
@@ -473,26 +364,25 @@ const Home = () => {
               </span>
             </div>
 
-            {/* Direction Guide Text */}
-            {/* {!isHolding && !selected && !showDescriptionModal && (
-              <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-center pointer-events-none">
-                <p className="text-xs text-gray-400">⬆️ ⬇️ ⬅️ ➡️  Swipe to report</p>
-              </div>
-            )} */}
-
-            {/* Selected Direction Indicator */}
-            {selected && direction && !showDescriptionModal && (
+            {/* Selected Direction Indicator - Shows which emergency is selected */}
+            {selected && direction && !loading && (
               <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-white px-4 py-1.5 rounded-full shadow-lg border-2 border-blue-500 animate-bounce whitespace-nowrap pointer-events-none">
                 <span className="text-xs font-semibold">
-                  {selected.icon} {selected.label} → Release to add description
+                  {selected.icon} {selected.label} → Release to report instantly!
+                </span>
+              </div>
+            )}
+
+            {/* Loading Indicator */}
+            {loading && (
+              <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 bg-red-100 px-4 py-1.5 rounded-full shadow-lg border-2 border-red-500 whitespace-nowrap pointer-events-none">
+                <span className="text-xs font-semibold text-red-600 animate-pulse">
+                  ⏳ Sending emergency...
                 </span>
               </div>
             )}
           </div>
         </div>
-
-        {/* ✅ Description Modal */}
-        <DescriptionModal />
 
         {/* Quick Actions */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-2xl mx-auto mb-8">

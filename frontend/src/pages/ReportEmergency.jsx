@@ -149,56 +149,90 @@ const ReportEmergency = () => {
     setLoading(true);
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'https://emergency-backend-uzkq.onrender.com/api';
+      // ✅ Use localhost for development, fallback to deployed
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
       
-      let voiceBase64 = null;
-      if (voiceBlob) {
-        voiceBase64 = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(voiceBlob);
+      // ✅ Check if backend is reachable
+      try {
+        const healthCheck = await fetch(`${API_URL}/health`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
         });
+        if (!healthCheck.ok) {
+          throw new Error('Backend not reachable');
+        }
+        console.log('✅ Backend is reachable');
+      } catch (healthError) {
+        console.warn('⚠️ Backend health check failed, trying localhost...');
+        // Try localhost as fallback
+        if (API_URL.includes('render.com')) {
+          // If deployed backend fails, try local
+          const localAPI = 'http://localhost:5000/api';
+          console.log('🔄 Trying local backend...');
+          const localHealth = await fetch(`${localAPI}/health`);
+          if (localHealth.ok) {
+            // Use local API
+            await submitEmergency(localAPI);
+            return;
+          }
+        }
+        throw new Error('Cannot connect to backend server');
       }
 
-      let imageBase64 = null;
-      if (imageFile) {
-        imageBase64 = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(imageFile);
-        });
-      }
+      await submitEmergency(API_URL);
 
-      const response = await fetch(`${API_URL}/emergencies/citizen`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...formData,
-          reportType: 'citizen',
-          reporterRole: 'citizen',
-          voiceMessage: voiceBase64,
-          photo: imageBase64
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to submit report');
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        alert(`✅ Emergency reported!\nComplaint ID: ${result.complaintId}`);
-        navigate(`/track/${result.complaintId}`);
-      } else {
-        throw new Error(result.message || 'Failed to submit report');
-      }
     } catch (error) {
       console.error('Error submitting report:', error);
-      alert('❌ Failed to submit report. Please try again.\n\n' + error.message);
+      alert(`❌ Failed to submit report.\n\nError: ${error.message}\n\n💡 Make sure the backend server is running on http://localhost:5000`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ✅ Separate function for submission
+  const submitEmergency = async (API_URL) => {
+    let voiceBase64 = null;
+    if (voiceBlob) {
+      voiceBase64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(voiceBlob);
+      });
+    }
+
+    let imageBase64 = null;
+    if (imageFile) {
+      imageBase64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(imageFile);
+      });
+    }
+
+    const response = await fetch(`${API_URL}/emergencies/citizen`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...formData,
+        reportType: 'citizen',
+        reporterRole: 'citizen',
+        voiceMessage: voiceBase64,
+        photo: imageBase64
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to submit report');
+    }
+
+    const result = await response.json();
+    
+    if (result.success) {
+      alert(`✅ Emergency reported!\nComplaint ID: ${result.complaintId}`);
+      navigate(`/track/${result.complaintId}`);
+    } else {
+      throw new Error(result.message || 'Failed to submit report');
     }
   };
 
@@ -277,7 +311,6 @@ const ReportEmergency = () => {
               </select>
             </div>
 
-            {/* ✅ Description - Optional (No star) */}
             <div>
               <label className="block text-sm font-medium text-gray-700">
                 Description (Optional)
