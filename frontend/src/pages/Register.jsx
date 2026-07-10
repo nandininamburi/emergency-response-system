@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { 
   FaUser, FaEnvelope, FaPhone, FaIdCard, FaTint, FaAddressCard, 
   FaUserMd, FaShieldAlt, FaArrowRight, FaHeartbeat, FaFileMedical, 
@@ -8,6 +9,7 @@ import {
 
 const Register = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -136,15 +138,24 @@ const Register = () => {
     setErrors({});
 
     try {
-      localStorage.setItem('user', JSON.stringify(formData));
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('authToken', 'demo-token-' + Date.now());
+      // Create user data for AuthContext
+      const userData = {
+        uid: 'user-' + Date.now(),
+        email: formData.email,
+        name: formData.fullName,
+        fullName: formData.fullName,
+        phone: formData.phone,
+        role: 'citizen', // Default role for registration
+        bloodGroup: formData.bloodGroup,
+        address: formData.address,
+        emergencyContact: formData.emergencyContact,
+        emergencyContactPhone: formData.emergencyContactPhone,
+        allergies: formData.allergies,
+        isDemo: true
+      };
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+      // Use AuthContext login
+      login(userData);
 
       setLoading(false);
       setShowSuccess(true);
@@ -156,6 +167,7 @@ const Register = () => {
     } catch (error) {
       console.error('Registration error:', error);
       setLoading(false);
+      // Fallback - still show success for demo
       setShowSuccess(true);
       setTimeout(() => {
         navigate('/');
