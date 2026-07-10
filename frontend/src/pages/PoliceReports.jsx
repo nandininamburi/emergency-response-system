@@ -16,7 +16,8 @@ const PoliceReports = () => {
 
   const fetchEmergencies = async () => {
     try {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/emergencies`);
+      const API_URL = import.meta.env.VITE_API_URL || 'https://emergency-backend-uzkq.onrender.com/api';
+      const response = await axios.get(`${API_URL}/emergencies`);
       setAllEmergencies(response.data);
     } catch (error) {
       console.error('Error fetching emergencies:', error);
@@ -63,7 +64,8 @@ const PoliceReports = () => {
 
   const updateCaseStatus = async (id, status) => {
     try {
-      await axios.put(`${import.meta.env.VITE_API_URL}/emergencies/${id}`, { 
+      const API_URL = import.meta.env.VITE_API_URL || 'https://emergency-backend-uzkq.onrender.com/api';
+      await axios.put(`${API_URL}/emergencies/${id}`, { 
         status,
         assignedOfficer: 'Officer Kumar',
         updatedAt: new Date().toISOString()
@@ -143,7 +145,7 @@ const PoliceReports = () => {
 
   const statusFilters = ['all', 'Pending', 'Assigned', 'On Route', 'Resolved'];
 
-  // ✅ View Details Modal
+  // ✅ View Details Modal with Voice & Image Support
   const ViewDetailsModal = ({ case_, onClose }) => {
     if (!case_) return null;
     
@@ -209,7 +211,32 @@ const PoliceReports = () => {
                 </div>
               </div>
 
-              {/* ✅ Mini Map */}
+              {/* ✅ Voice Message Section */}
+              {case_.voiceMessage && (
+                <div className="bg-purple-50 rounded-lg p-4 border border-purple-200">
+                  <h3 className="font-semibold text-gray-700 mb-2">🎙️ Voice Message</h3>
+                  <audio controls className="w-full">
+                    <source src={case_.voiceMessage} type="audio/wav" />
+                    Your browser does not support the audio element.
+                  </audio>
+                  <p className="text-xs text-gray-500 mt-1">📢 Voice message from the reporter</p>
+                </div>
+              )}
+
+              {/* ✅ Photo/Image Section */}
+              {case_.photo && (
+                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                  <h3 className="font-semibold text-gray-700 mb-2">📸 Evidence Photo</h3>
+                  <img 
+                    src={case_.photo} 
+                    alt="Emergency evidence" 
+                    className="max-w-full max-h-64 rounded-lg object-contain"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">📷 Evidence image from the scene</p>
+                </div>
+              )}
+
+              {/* Mini Map */}
               {case_.latitude && case_.longitude && (
                 <div className="rounded-lg overflow-hidden border border-gray-200">
                   <div className="h-48">
@@ -367,9 +394,8 @@ const PoliceReports = () => {
                       </div>
                     </div>
                     
-                    {/* ✅ Action Buttons */}
+                    {/* Action Buttons */}
                     <div className="flex flex-wrap gap-1">
-                      {/* ✅ Details Button */}
                       <button 
                         onClick={() => {
                           setSelectedCase(case_);
@@ -380,7 +406,6 @@ const PoliceReports = () => {
                         📋 Details
                       </button>
                       
-                      {/* Call Button */}
                       {case_.phone && (
                         <button 
                           onClick={() => makeCall(case_.phone)}
@@ -390,7 +415,6 @@ const PoliceReports = () => {
                         </button>
                       )}
                       
-                      {/* Navigate Button */}
                       {case_.latitude && case_.longitude && (
                         <button 
                           onClick={() => navigateTo(case_.latitude, case_.longitude)}
@@ -400,7 +424,6 @@ const PoliceReports = () => {
                         </button>
                       )}
                       
-                      {/* Accept Button */}
                       {case_.status === 'Pending' && (
                         <button 
                           onClick={() => updateCaseStatus(case_.id, 'Assigned')}
@@ -410,7 +433,6 @@ const PoliceReports = () => {
                         </button>
                       )}
                       
-                      {/* En Route Button */}
                       {case_.status === 'Assigned' && (
                         <button 
                           onClick={() => updateCaseStatus(case_.id, 'On Route')}
@@ -420,7 +442,6 @@ const PoliceReports = () => {
                         </button>
                       )}
                       
-                      {/* Resolve Button */}
                       {case_.status === 'On Route' && (
                         <button 
                           onClick={() => updateCaseStatus(case_.id, 'Resolved')}
@@ -438,7 +459,7 @@ const PoliceReports = () => {
         </div>
       </div>
 
-      {/* ✅ Details Modal */}
+      {/* Details Modal */}
       {showDetails && selectedCase && (
         <ViewDetailsModal 
           case_={selectedCase} 

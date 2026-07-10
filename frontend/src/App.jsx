@@ -6,6 +6,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import Navbar from "./components/Navbar";
 import CitizenNavbar from "./components/CitizenNavbar";
 import PoliceNavbar from "./components/PoliceNavbar";
 import Footer from "./components/Footer";
@@ -22,30 +23,54 @@ import DispatcherSOS from "./pages/DispatcherSOS";
 import "./index.css";
 
 const NavbarSelector = () => {
-  const [userRole, setUserRole] = React.useState("citizen");
+  const [userRole, setUserRole] = React.useState("guest");
+  const [isLoggedIn, setIsLoggedIn] = React.useState(false);
 
   React.useEffect(() => {
     const userData = localStorage.getItem("user");
-    if (userData) {
+    const loggedIn = localStorage.getItem("isLoggedIn");
+    
+    if (loggedIn === "true" && userData) {
       const parsed = JSON.parse(userData);
       setUserRole(parsed.role || "citizen");
+      setIsLoggedIn(true);
+    } else {
+      setUserRole("guest");
+      setIsLoggedIn(false);
     }
 
     const handleStorageChange = () => {
       const updatedUser = localStorage.getItem("user");
-      if (updatedUser) {
+      const updatedLoggedIn = localStorage.getItem("isLoggedIn");
+      if (updatedLoggedIn === "true" && updatedUser) {
         const parsed = JSON.parse(updatedUser);
         setUserRole(parsed.role || "citizen");
+        setIsLoggedIn(true);
+      } else {
+        setUserRole("guest");
+        setIsLoggedIn(false);
       }
     };
     window.addEventListener("storage", handleStorageChange);
     return () => window.removeEventListener("storage", handleStorageChange);
   }, []);
 
+  // ✅ Guest gets Navbar (Login/Register only)
+  if (!isLoggedIn) {
+    return <Navbar />;
+  }
+  
+  // ✅ Citizen gets CitizenNavbar
+  if (userRole === "citizen" || userRole === "dispatcher") {
+    return <CitizenNavbar />;
+  }
+  
+  // ✅ Police gets PoliceNavbar
   if (userRole === "police") {
     return <PoliceNavbar />;
   }
-  return <CitizenNavbar />;
+  
+  return <Navbar />;
 };
 
 function App() {
@@ -70,24 +95,15 @@ function App() {
               <Route path="/dispatcher" element={<DispatcherDashboard />} />
               <Route path="/sos" element={<DispatcherSOS />} />
 
-              {/* Police Routes - Only working routes */}
+              {/* Police Routes */}
               <Route path="/police" element={<PoliceDashboard />} />
               <Route path="/police/reports" element={<PoliceReports />} />
               <Route path="/police/sos" element={<PoliceSOS />} />
 
               {/* Redirect old routes */}
-              <Route
-                path="/police/map"
-                element={<Navigate to="/police" replace />}
-              />
-              <Route
-                path="/police/cases"
-                element={<Navigate to="/police/reports" replace />}
-              />
-              <Route
-                path="/police/*"
-                element={<Navigate to="/police" replace />}
-              />
+              <Route path="/police/map" element={<Navigate to="/police" replace />} />
+              <Route path="/police/cases" element={<Navigate to="/police/reports" replace />} />
+              <Route path="/police/*" element={<Navigate to="/police" replace />} />
             </Routes>
           </main>
           <Footer />

@@ -31,7 +31,7 @@ const TrackComplaint = () => {
     setError('');
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://emergency-backend-uzkq.onrender.com/api';
       const response = await axios.get(
         `${apiUrl}/emergencies/${complaintId.trim()}`
       );
@@ -242,6 +242,32 @@ const TrackComplaint = () => {
                     <p className="text-sm text-gray-500 mt-1">{complaint.address}</p>
                   )}
                 </div>
+
+                {/* ✅ Voice Message Section */}
+                {complaint.voiceMessage && (
+                  <div className="col-span-2 bg-purple-50 p-3 rounded-lg mt-2">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">🎙️ Voice Message</p>
+                    <audio controls className="w-full">
+                      <source src={complaint.voiceMessage} type="audio/wav" />
+                      Your browser does not support the audio element.
+                    </audio>
+                    <p className="text-xs text-gray-500 mt-1">📢 Voice message from reporter</p>
+                  </div>
+                )}
+
+                {/* ✅ Photo/Image Section */}
+                {complaint.photo && (
+                  <div className="col-span-2 bg-green-50 p-3 rounded-lg mt-2">
+                    <p className="text-sm font-semibold text-gray-700 mb-2">📸 Evidence Photo</p>
+                    <img 
+                      src={complaint.photo} 
+                      alt="Emergency evidence" 
+                      className="max-w-full max-h-64 rounded-lg object-contain"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">📷 Evidence from the scene</p>
+                  </div>
+                )}
+
                 {(complaint.emergencyContact || complaint.emergencyContactPhone) && (
                   <div className="col-span-2 bg-yellow-50 p-3 rounded-lg mt-2">
                     <p className="text-sm font-semibold text-gray-700">🆘 Emergency Contact</p>

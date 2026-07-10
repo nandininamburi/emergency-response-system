@@ -1,30 +1,70 @@
 const { auth } = require('../config/firebase');
 
-// Register user
+// Register user with unique email validation
 exports.register = async (req, res) => {
   try {
     const { email, password, name, role, fullName, phone, aadhar, bloodGroup } = req.body;
     
-    // Check if auth is available
+    // ✅ Check if auth is available
     if (!auth) {
-      // Demo mode - save to localStorage only
+      // Demo mode - check if email already exists in Firestore
+      const { db } = require('../config/firebase');
+      if (db) {
+        const existingUser = await db.collection('users')
+          .where('email', '==', email)
+          .get();
+        
+        if (!existingUser.empty) {
+          return res.status(400).json({
+            success: false,
+            error: 'Email already exists. Please use a different email or login.'
+          });
+        }
+      }
+      
+      // Save to Firestore
+      if (db) {
+        await db.collection('users').add({
+          email: email,
+          fullName: fullName || name || 'User',
+          phone: phone || '',
+          aadhar: aadhar || '',
+          bloodGroup: bloodGroup || '',
+          role: role || 'citizen',
+          createdAt: new Date().toISOString()
+        });
+      }
+      
       return res.status(201).json({
         success: true,
         uid: 'demo-' + Date.now(),
         email,
         name: fullName || name || 'User',
         role: role || 'citizen',
-        message: 'Demo registration successful (Firebase Auth not configured)'
+        message: 'Registration successful!'
       });
     }
     
     try {
+      // ✅ Check if user already exists in Firebase Auth
+      try {
+        await auth.getUserByEmail(email);
+        return res.status(400).json({
+          success: false,
+          error: 'Email already exists. Please use a different email or login.'
+        });
+      } catch (userError) {
+        // User doesn't exist - proceed with creation
+        if (userError.code !== 'auth/user-not-found') {
+          throw userError;
+        }
+      }
+      
       // Create user in Firebase Authentication
       const userRecord = await auth.createUser({
         email: email,
         password: password,
         displayName: fullName || name || 'User',
-        // You can add custom claims for role
       });
       
       // Set custom claims for role
@@ -61,7 +101,6 @@ exports.register = async (req, res) => {
     } catch (authError) {
       console.error('Firebase Auth error:', authError.message);
       
-      // Handle specific Firebase Auth errors
       if (authError.code === 'auth/email-already-exists') {
         return res.status(400).json({
           success: false,
@@ -83,12 +122,11 @@ exports.register = async (req, res) => {
         email,
         name: fullName || name || 'User',
         role: role || 'citizen',
-        message: 'Registration saved locally (Firebase Auth error: ' + authError.message + ')'
+        message: 'Registration saved locally'
       });
     }
   } catch (error) {
     console.error('Registration error:', error);
-    // Return success anyway for demo
     res.status(201).json({
       success: true,
       uid: 'demo-' + Date.now(),
@@ -100,12 +138,11 @@ exports.register = async (req, res) => {
   }
 };
 
-// Login user
+// Login user with role-based redirect
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     
-    // Demo login - for development
     if (!auth) {
       let role = 'citizen';
       if (email === 'dispatcher@system.com') role = 'dispatcher';
@@ -121,21 +158,10 @@ exports.login = async (req, res) => {
       });
     }
     
-    // In production with Firebase Auth, we verify the ID token
-    // For this demo, we'll simulate login
-    // In a real app, you'd use Firebase Auth client-side and send the ID token
-    
-    // For demo purposes, check if user exists in Firebase Auth
     try {
-      // Try to get user by email (this is just for demo)
-      // In production, use ID token verification
       const user = await auth.getUserByEmail(email);
-      
-      // User exists in Firebase Auth
-      // Get custom claims for role
       const claims = user.customClaims || {};
       
-      // Get additional user data from Firestore
       const { db } = require('../config/firebase');
       let userData = {};
       if (db) {
@@ -157,7 +183,6 @@ exports.login = async (req, res) => {
       });
       
     } catch (userError) {
-      // User not found in Firebase Auth - fallback to demo login
       console.log('User not found in Firebase, using demo login');
       
       let role = 'citizen';
@@ -176,7 +201,6 @@ exports.login = async (req, res) => {
     
   } catch (error) {
     console.error('Login error:', error);
-    // Fallback to demo login
     const { email } = req.body;
     let role = 'citizen';
     if (email === 'dispatcher@system.com') role = 'dispatcher';

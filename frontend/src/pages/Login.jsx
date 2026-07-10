@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { FaEnvelope, FaLock, FaUser, FaGoogle, FaFacebook, FaTwitter, FaShieldAlt, FaArrowRight } from 'react-icons/fa';
+import { FaEnvelope, FaLock, FaUser, FaArrowRight } from 'react-icons/fa';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -59,7 +59,7 @@ const Login = () => {
           email: formData.email, 
           name: 'Police Officer', 
           role: 'police',
-          fullName: 'Officer Kumar',
+          fullName: 'Police Officer',
           phone: '8888888888',
           bloodGroup: 'B+',
           badgeNumber: 'POL-001',
@@ -85,7 +85,6 @@ const Login = () => {
       localStorage.setItem('userRole', role);
       localStorage.setItem('authToken', 'demo-token-' + Date.now());
       
-      // Show success animation
       setLoading(false);
       navigate(redirectPath);
     } catch (err) {
@@ -96,8 +95,6 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-r from-blue-600 to-indigo-600 opacity-10"></div>
-      
       <div className="max-w-md w-full bg-white rounded-2xl shadow-2xl overflow-hidden relative">
         {/* Decorative Header */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-8 text-center relative">
@@ -122,7 +119,7 @@ const Login = () => {
         {/* Form Area */}
         <div className="px-6 py-8">
           {error && (
-            <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg animate-shake">
+            <div className="mb-4 bg-red-50 border-l-4 border-red-500 p-3 rounded-r-lg">
               <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
@@ -259,14 +256,14 @@ const Login = () => {
 
           {/* Social Login */}
           <div className="grid grid-cols-3 gap-3">
-            <button className="py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2 text-gray-700">
-              <FaGoogle className="text-red-500" /> Google
+            <button className="py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2 text-gray-700 text-sm">
+              <span className="text-red-500 text-lg">G</span> Google
             </button>
-            <button className="py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2 text-gray-700">
-              <FaFacebook className="text-blue-600" /> Facebook
+            <button className="py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2 text-gray-700 text-sm">
+              <span className="text-blue-600 text-lg">f</span> Facebook
             </button>
-            <button className="py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2 text-gray-700">
-              <FaTwitter className="text-blue-400" /> Twitter
+            <button className="py-2 border border-gray-300 rounded-xl hover:bg-gray-50 transition flex items-center justify-center gap-2 text-gray-700 text-sm">
+              <span className="text-blue-400 text-lg">𝕏</span> Twitter
             </button>
           </div>
 

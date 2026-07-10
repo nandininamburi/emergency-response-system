@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -11,13 +11,20 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
-// Default location (Ongole, Andhra Pradesh)
 const DEFAULT_LOCATION = { latitude: 15.5057, longitude: 80.0499 };
 
 const ReportEmergency = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [locationError, setLocationError] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceBlob, setVoiceBlob] = useState(null);
+  const [voiceURL, setVoiceURL] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -79,6 +86,60 @@ const ReportEmergency = () => {
     }
   }, []);
 
+  // Voice Recording
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/wav' });
+        const audioUrl = URL.createObjectURL(audioBlob);
+        setVoiceBlob(audioBlob);
+        setVoiceURL(audioUrl);
+        setIsRecording(false);
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (error) {
+      console.error('Error accessing microphone:', error);
+      alert('❌ Please allow microphone access to record voice message.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+    }
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -90,13 +151,33 @@ const ReportEmergency = () => {
     try {
       const API_URL = import.meta.env.VITE_API_URL || 'https://emergency-backend-uzkq.onrender.com/api';
       
+      let voiceBase64 = null;
+      if (voiceBlob) {
+        voiceBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(voiceBlob);
+        });
+      }
+
+      let imageBase64 = null;
+      if (imageFile) {
+        imageBase64 = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(imageFile);
+        });
+      }
+
       const response = await fetch(`${API_URL}/emergencies/citizen`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
           reportType: 'citizen',
-          reporterRole: 'citizen'
+          reporterRole: 'citizen',
+          voiceMessage: voiceBase64,
+          photo: imageBase64
         })
       });
 
@@ -196,17 +277,97 @@ const ReportEmergency = () => {
               </select>
             </div>
 
+            {/* ✅ Description - Optional (No star) */}
             <div>
-              <label className="block text-sm font-medium text-gray-700">Description *</label>
+              <label className="block text-sm font-medium text-gray-700">
+                Description (Optional)
+              </label>
               <textarea
                 name="description"
                 rows="3"
                 value={formData.description}
                 onChange={handleChange}
-                placeholder="Describe what happened..."
+                placeholder="Describe what happened (optional)..."
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                required
               />
+              <p className="text-xs text-gray-400 mt-1">💡 You can skip this and use voice message instead</p>
+            </div>
+
+            {/* Voice Message Section */}
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                🎙️ Voice Message (For uneducated users - speak instead of type)
+              </label>
+              <div className="flex items-center gap-4">
+                {!isRecording ? (
+                  <button
+                    type="button"
+                    onClick={startRecording}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition flex items-center gap-2"
+                  >
+                    🎙️ Start Recording
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={stopRecording}
+                    className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition flex items-center gap-2 animate-pulse"
+                  >
+                    ⏹️ Stop Recording
+                  </button>
+                )}
+                {isRecording && (
+                  <span className="text-red-600 text-sm font-medium animate-pulse">🔴 Recording...</span>
+                )}
+                {voiceURL && (
+                  <div className="flex items-center gap-2">
+                    <audio controls className="h-10">
+                      <source src={voiceURL} type="audio/wav" />
+                    </audio>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setVoiceBlob(null);
+                        setVoiceURL(null);
+                      }}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                    >
+                      ✕ Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                {isRecording ? '🔴 Recording... Speak clearly' : 'Click to record your emergency message (Max 30 seconds)'}
+              </p>
+            </div>
+
+            {/* Image Upload Section */}
+            <div className="border rounded-lg p-4 bg-gray-50">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                📸 Photo / Video Upload (For proof)
+              </label>
+              <div className="flex items-center gap-4 flex-wrap">
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleImageUpload}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                {imagePreview && (
+                  <div className="relative">
+                    <img src={imagePreview} alt="Preview" className="h-20 w-20 object-cover rounded-md border" />
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-700"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Upload photo or video as proof of the incident</p>
             </div>
 
             <div>
@@ -262,7 +423,7 @@ const ReportEmergency = () => {
           </form>
 
           <p className="text-xs text-gray-400 text-center mt-4">
-            💡 Only basic information needed. For detailed help, dispatchers use SOS.
+            💡 You can type, speak voice message, or upload photos/videos
           </p>
         </div>
       </div>

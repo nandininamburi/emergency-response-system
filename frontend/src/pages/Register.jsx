@@ -1,35 +1,80 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { FaUser, FaEnvelope, FaPhone, FaIdCard, FaTint, FaAddressCard, FaUserMd, FaShieldAlt, FaArrowRight } from 'react-icons/fa';
+import { 
+  FaUser, FaEnvelope, FaPhone, FaIdCard, FaTint, FaAddressCard, 
+  FaUserMd, FaShieldAlt, FaArrowRight, FaHeartbeat, FaFileMedical, 
+  FaUpload, FaTimes, FaUserFriends 
+} from 'react-icons/fa';
 
 const Register = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
+    // Step 1: Personal Information
     fullName: '',
     phone: '',
-    email: '',
+    dateOfBirth: '',
+    gender: '',
     aadhar: '',
     bloodGroup: '',
     address: '',
+    
+    // Step 2: Account & Security
+    email: '',
+    password: '',
+    confirmPassword: '',
+    
+    // Step 3: Emergency & Medical
     emergencyContact: '',
     emergencyContactPhone: '',
-    dateOfBirth: '',
-    gender: '',
+    emergencyContactRelation: '',
     allergies: '',
-    password: '',
-    confirmPassword: ''
+    previousHospital: '',
+    medicalHistory: '',
+    medicalDocuments: [],
+    previousReports: []
   });
   const [errors, setErrors] = useState({});
   const [showSuccess, setShowSuccess] = useState(false);
+  const [documentPreviews, setDocumentPreviews] = useState([]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
-    // Clear error for this field
     if (errors[e.target.name]) {
       setErrors({ ...errors, [e.target.name]: '' });
     }
+  };
+
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const validFiles = files.filter(file => {
+      const validTypes = ['image/*', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+      return true; // Accept all files for now
+    });
+    
+    setFormData(prev => ({
+      ...prev,
+      medicalDocuments: [...prev.medicalDocuments, ...validFiles]
+    }));
+    
+    // Create previews for images
+    const previews = validFiles.map(file => {
+      if (file.type.startsWith('image/')) {
+        return URL.createObjectURL(file);
+      }
+      return null;
+    }).filter(Boolean);
+    
+    setDocumentPreviews(prev => [...prev, ...previews]);
+  };
+
+  const removeDocument = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      medicalDocuments: prev.medicalDocuments.filter((_, i) => i !== index)
+    }));
+    setDocumentPreviews(prev => prev.filter((_, i) => i !== index));
   };
 
   const validateStep1 = () => {
@@ -48,42 +93,53 @@ const Register = () => {
     if (!formData.email) newErrors.email = 'Email is required';
     if (!formData.password || formData.password.length < 6) newErrors.password = 'Password must be at least 6 characters';
     if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Passwords do not match';
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const validateStep3 = () => {
+    const newErrors = {};
     if (!formData.emergencyContact) newErrors.emergencyContact = 'Emergency contact is required';
     if (!formData.emergencyContactPhone || formData.emergencyContactPhone.length < 10) {
       newErrors.emergencyContactPhone = 'Valid emergency contact phone is required';
     }
+    if (!formData.emergencyContactRelation) newErrors.emergencyContactRelation = 'Please specify relation';
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleNext = () => {
-    if (validateStep1()) {
+    if (currentStep === 1 && validateStep1()) {
       setCurrentStep(2);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (currentStep === 2 && validateStep2()) {
+      setCurrentStep(3);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
   const handleBack = () => {
-    setCurrentStep(1);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateStep2()) return;
+    if (!validateStep3()) return;
     
     setLoading(true);
     setErrors({});
 
     try {
-      // Save user data to localStorage
       localStorage.setItem('user', JSON.stringify(formData));
       localStorage.setItem('isLoggedIn', 'true');
       localStorage.setItem('authToken', 'demo-token-' + Date.now());
 
-      // Send to backend
       const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -93,7 +149,6 @@ const Register = () => {
       setLoading(false);
       setShowSuccess(true);
       
-      // Show success message briefly then redirect
       setTimeout(() => {
         navigate('/');
       }, 2000);
@@ -114,9 +169,13 @@ const Register = () => {
         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${currentStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
           1
         </div>
-        <div className={`w-16 h-1 ${currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+        <div className={`w-12 h-1 ${currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
         <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${currentStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
           2
+        </div>
+        <div className={`w-12 h-1 ${currentStep >= 3 ? 'bg-blue-600' : 'bg-gray-200'}`}></div>
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${currentStep >= 3 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'}`}>
+          3
         </div>
       </div>
     </div>
@@ -139,7 +198,6 @@ const Register = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
-        {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-block bg-blue-600 text-white px-4 py-1 rounded-full text-sm font-semibold mb-3">
             🚨 Emergency Response
@@ -156,6 +214,7 @@ const Register = () => {
               {renderStepIndicator()}
 
               <form onSubmit={handleSubmit}>
+                {/* Step 1: Personal Information */}
                 {currentStep === 1 && (
                   <div className="space-y-5">
                     <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
@@ -174,7 +233,6 @@ const Register = () => {
                           onChange={handleChange}
                           placeholder="Enter your full name"
                           className={`w-full px-4 py-3 border ${errors.fullName ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                          required
                         />
                         {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
                       </div>
@@ -190,9 +248,39 @@ const Register = () => {
                           onChange={handleChange}
                           placeholder="10-digit mobile number"
                           className={`w-full px-4 py-3 border ${errors.phone ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                          required
                         />
                         {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          📅 Date of Birth
+                        </label>
+                        <input
+                          type="date"
+                          name="dateOfBirth"
+                          value={formData.dateOfBirth}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          👤 Gender
+                        </label>
+                        <select
+                          name="gender"
+                          value={formData.gender}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                        >
+                          <option value="">Select Gender</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                          <option value="Prefer not to say">Prefer not to say</option>
+                        </select>
                       </div>
 
                       <div>
@@ -207,7 +295,6 @@ const Register = () => {
                           placeholder="12-digit Aadhaar number"
                           maxLength="12"
                           className={`w-full px-4 py-3 border ${errors.aadhar ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                          required
                         />
                         {errors.aadhar && <p className="text-red-500 text-xs mt-1">{errors.aadhar}</p>}
                       </div>
@@ -221,7 +308,6 @@ const Register = () => {
                           value={formData.bloodGroup}
                           onChange={handleChange}
                           className={`w-full px-4 py-3 border ${errors.bloodGroup ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white`}
-                          required
                         >
                           <option value="">Select Blood Group</option>
                           <option value="A+">A+</option>
@@ -234,37 +320,6 @@ const Register = () => {
                           <option value="O-">O-</option>
                         </select>
                         {errors.bloodGroup && <p className="text-red-500 text-xs mt-1">{errors.bloodGroup}</p>}
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Date of Birth
-                        </label>
-                        <input
-                          type="date"
-                          name="dateOfBirth"
-                          value={formData.dateOfBirth}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Gender
-                        </label>
-                        <select
-                          name="gender"
-                          value={formData.gender}
-                          onChange={handleChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
-                        >
-                          <option value="">Select Gender</option>
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                          <option value="Other">Other</option>
-                          <option value="Prefer not to say">Prefer not to say</option>
-                        </select>
                       </div>
 
                       <div className="md:col-span-2">
@@ -292,6 +347,7 @@ const Register = () => {
                   </div>
                 )}
 
+                {/* Step 2: Account & Security */}
                 {currentStep === 2 && (
                   <div className="space-y-5">
                     <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
@@ -310,14 +366,13 @@ const Register = () => {
                           onChange={handleChange}
                           placeholder="your@email.com"
                           className={`w-full px-4 py-3 border ${errors.email ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                          required
                         />
                         {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Password *
+                          🔒 Password *
                         </label>
                         <input
                           type="password"
@@ -326,14 +381,13 @@ const Register = () => {
                           onChange={handleChange}
                           placeholder="Min 6 characters"
                           className={`w-full px-4 py-3 border ${errors.password ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                          required
                         />
                         {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
                       </div>
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Confirm Password *
+                          ✅ Confirm Password *
                         </label>
                         <input
                           type="password"
@@ -342,11 +396,38 @@ const Register = () => {
                           onChange={handleChange}
                           placeholder="Confirm your password"
                           className={`w-full px-4 py-3 border ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                          required
                         />
                         {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>}
                       </div>
+                    </div>
 
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={handleBack}
+                        className="flex-1 py-3 border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all"
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleNext}
+                        className="flex-1 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold rounded-xl hover:shadow-lg transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center gap-2"
+                      >
+                        Next Step <FaArrowRight />
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Step 3: Emergency & Medical */}
+                {currentStep === 3 && (
+                  <div className="space-y-5">
+                    <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                      <FaHeartbeat className="text-red-500" /> Emergency & Medical Information
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           🆘 Emergency Contact Name *
@@ -356,16 +437,15 @@ const Register = () => {
                           name="emergencyContact"
                           value={formData.emergencyContact}
                           onChange={handleChange}
-                          placeholder="Name of emergency contact"
+                          placeholder="Contact person name"
                           className={`w-full px-4 py-3 border ${errors.emergencyContact ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                          required
                         />
                         {errors.emergencyContact && <p className="text-red-500 text-xs mt-1">{errors.emergencyContact}</p>}
                       </div>
 
-                      <div className="md:col-span-2">
+                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          🆘 Emergency Contact Phone *
+                          📱 Contact Phone *
                         </label>
                         <input
                           type="tel"
@@ -374,25 +454,125 @@ const Register = () => {
                           onChange={handleChange}
                           placeholder="10-digit mobile number"
                           className={`w-full px-4 py-3 border ${errors.emergencyContactPhone ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all`}
-                          required
                         />
                         {errors.emergencyContactPhone && <p className="text-red-500 text-xs mt-1">{errors.emergencyContactPhone}</p>}
                       </div>
 
-                      <div className="md:col-span-2">
+                      <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          <FaUserMd className="inline mr-1 text-blue-600" /> Known Allergies (Optional)
+                          <FaUserFriends className="inline mr-1 text-blue-600" /> Relation *
                         </label>
-                        <textarea
-                          name="allergies"
-                          value={formData.allergies}
+                        <select
+                          name="emergencyContactRelation"
+                          value={formData.emergencyContactRelation}
                           onChange={handleChange}
-                          rows="2"
-                          placeholder="e.g., Penicillin, Peanuts, Latex"
-                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">⚕️ This helps medical responders provide safer treatment</p>
+                          className={`w-full px-4 py-3 border ${errors.emergencyContactRelation ? 'border-red-500' : 'border-gray-300'} rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white`}
+                        >
+                          <option value="">Select Relation</option>
+                          <option value="Father">Father</option>
+                          <option value="Mother">Mother</option>
+                          <option value="Spouse">Spouse</option>
+                          <option value="Brother">Brother</option>
+                          <option value="Sister">Sister</option>
+                          <option value="Son">Son</option>
+                          <option value="Daughter">Daughter</option>
+                          <option value="Friend">Friend</option>
+                          <option value="Neighbor">Neighbor</option>
+                          <option value="Other">Other</option>
+                        </select>
+                        {errors.emergencyContactRelation && <p className="text-red-500 text-xs mt-1">{errors.emergencyContactRelation}</p>}
                       </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        <FaUserMd className="inline mr-1 text-blue-600" /> Known Allergies (Optional)
+                      </label>
+                      <textarea
+                        name="allergies"
+                        value={formData.allergies}
+                        onChange={handleChange}
+                        rows="2"
+                        placeholder="e.g., Penicillin, Peanuts, Latex"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">⚕️ This helps medical responders provide safer treatment</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        🏥 Previous Hospital (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        name="previousHospital"
+                        value={formData.previousHospital}
+                        onChange={handleChange}
+                        placeholder="Name of hospital where you were previously treated"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        📋 Medical History (Optional)
+                      </label>
+                      <textarea
+                        name="medicalHistory"
+                        value={formData.medicalHistory}
+                        onChange={handleChange}
+                        rows="2"
+                        placeholder="Any previous medical conditions, surgeries, or treatments"
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      />
+                    </div>
+
+                    {/* ✅ Upload Previous Reports/Documents */}
+                    <div className="border-2 border-dashed border-gray-300 rounded-xl p-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <FaFileMedical className="inline mr-1 text-blue-600" /> Upload Previous Reports/Documents
+                      </label>
+                      <div className="flex items-center gap-4 flex-wrap">
+                        <label className="cursor-pointer bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-2 rounded-lg transition flex items-center gap-2">
+                          <FaUpload />
+                          <span>Upload Files</span>
+                          <input
+                            type="file"
+                            multiple
+                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.gif"
+                            onChange={handleFileUpload}
+                            className="hidden"
+                          />
+                        </label>
+                        <span className="text-xs text-gray-500">Supports: PDF, Word, Images</span>
+                      </div>
+                      
+                      {/* Document Previews */}
+                      {documentPreviews.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {documentPreviews.map((preview, index) => (
+                            <div key={index} className="relative">
+                              <img 
+                                src={preview} 
+                                alt={`Document ${index + 1}`} 
+                                className="w-16 h-16 object-cover rounded-md border"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeDocument(index)}
+                                className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-red-700"
+                              >
+                                <FaTimes />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {formData.medicalDocuments.length > 0 && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          {formData.medicalDocuments.length} file(s) uploaded
+                        </p>
+                      )}
                     </div>
 
                     <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
