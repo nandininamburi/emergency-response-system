@@ -10,9 +10,9 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// ✅ CORS Configuration - Simple and working
+// ✅ CORS Configuration
 app.use(cors({
-  origin: '*', // Allow all origins for now
+  origin: '*',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -23,17 +23,17 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
-// Import routes
+// ✅ Import routes - Make sure paths are correct
 const emergencyRoutes = require('./routes/emergencyRoutes');
 const authRoutes = require('./routes/authRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 
-// Use routes
+// ✅ Use routes with correct prefixes
 app.use('/api/emergencies', emergencyRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiRoutes);
 
-// Health check
+// ✅ Health check
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
@@ -44,14 +44,19 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// 404 handler
+// ✅ 404 handler - Make sure this is after all routes
 app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+  console.log(`❌ Route not found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ 
+    error: 'Route not found',
+    path: req.originalUrl,
+    method: req.method
+  });
 });
 
-// Error handler
+// ✅ Error handler
 app.use((err, req, res, next) => {
-  console.error('Error:', err.stack);
+  console.error('❌ Error:', err.stack);
   res.status(500).json({ 
     error: 'Something went wrong!',
     message: err.message 
@@ -64,4 +69,10 @@ app.listen(PORT, () => {
   console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
   console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`💾 Database: ${process.env.USE_FIREBASE === 'true' ? 'Firebase Firestore' : 'In-Memory Storage'}`);
+  console.log(`📋 Routes:`);
+  console.log(`   POST /api/auth/register`);
+  console.log(`   POST /api/auth/login`);
+  console.log(`   POST /api/emergencies/citizen`);
+  console.log(`   POST /api/emergencies/dispatcher`);
+  console.log(`   GET  /api/emergencies`);
 });

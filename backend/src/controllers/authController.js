@@ -1,52 +1,37 @@
 const { auth } = require('../config/firebase');
 
-// Register user with unique email validation
+// ✅ Register user
 exports.register = async (req, res) => {
   try {
+    console.log('📝 Registration request received:', req.body.email);
+    
     const { email, password, name, role, fullName, phone, aadhar, bloodGroup } = req.body;
+    
+    // ✅ Validate required fields
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email and password are required'
+      });
+    }
     
     // ✅ Check if auth is available
     if (!auth) {
-      // Demo mode - check if email already exists in Firestore
-      const { db } = require('../config/firebase');
-      if (db) {
-        const existingUser = await db.collection('users')
-          .where('email', '==', email)
-          .get();
-        
-        if (!existingUser.empty) {
-          return res.status(400).json({
-            success: false,
-            error: 'Email already exists. Please use a different email or login.'
-          });
-        }
-      }
+      console.log('⚠️ Firebase Auth not available, using demo mode');
       
-      // Save to Firestore
-      if (db) {
-        await db.collection('users').add({
-          email: email,
-          fullName: fullName || name || 'User',
-          phone: phone || '',
-          aadhar: aadhar || '',
-          bloodGroup: bloodGroup || '',
-          role: role || 'citizen',
-          createdAt: new Date().toISOString()
-        });
-      }
-      
+      // Demo mode - save to localStorage only
       return res.status(201).json({
         success: true,
         uid: 'demo-' + Date.now(),
         email,
         name: fullName || name || 'User',
         role: role || 'citizen',
-        message: 'Registration successful!'
+        message: 'Demo registration successful'
       });
     }
     
     try {
-      // ✅ Check if user already exists in Firebase Auth
+      // ✅ Check if user already exists
       try {
         await auth.getUserByEmail(email);
         return res.status(400).json({
@@ -60,21 +45,21 @@ exports.register = async (req, res) => {
         }
       }
       
-      // Create user in Firebase Authentication
+      // ✅ Create user
       const userRecord = await auth.createUser({
         email: email,
         password: password,
         displayName: fullName || name || 'User',
       });
       
-      // Set custom claims for role
+      console.log('✅ User created:', userRecord.uid);
+      
+      // ✅ Set custom claims
       await auth.setCustomUserClaims(userRecord.uid, { 
-        role: role || 'citizen',
-        phone: phone || '',
-        bloodGroup: bloodGroup || ''
+        role: role || 'citizen'
       });
       
-      // Store additional user data in Firestore
+      // ✅ Store additional user data
       const { db } = require('../config/firebase');
       if (db) {
         await db.collection('users').doc(userRecord.uid).set({
@@ -87,6 +72,7 @@ exports.register = async (req, res) => {
           role: role || 'citizen',
           createdAt: new Date().toISOString()
         });
+        console.log('✅ User data saved to Firestore');
       }
       
       res.status(201).json({
@@ -99,7 +85,7 @@ exports.register = async (req, res) => {
       });
       
     } catch (authError) {
-      console.error('Firebase Auth error:', authError.message);
+      console.error('❌ Firebase Auth error:', authError.message);
       
       if (authError.code === 'auth/email-already-exists') {
         return res.status(400).json({
@@ -115,7 +101,7 @@ exports.register = async (req, res) => {
         });
       }
       
-      // For other errors, still return success for demo
+      // For other errors, return demo success
       res.status(201).json({
         success: true,
         uid: 'demo-' + Date.now(),
@@ -126,22 +112,20 @@ exports.register = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('Registration error:', error);
-    res.status(201).json({
-      success: true,
-      uid: 'demo-' + Date.now(),
-      email: req.body.email,
-      name: req.body.fullName || req.body.name || 'User',
-      role: req.body.role || 'citizen',
-      message: 'Registration saved locally'
+    console.error('❌ Registration error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+      message: 'Registration failed'
     });
   }
 };
 
-// Login user with role-based redirect
+// ✅ Login user
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    console.log('🔐 Login request received:', email);
     
     if (!auth) {
       let role = 'citizen';

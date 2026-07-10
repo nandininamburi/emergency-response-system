@@ -2,16 +2,21 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
 
-// Register user
+// ✅ Register user
 router.post('/register', authController.register);
 
-// Login user
+// ✅ Login user
 router.post('/login', authController.login);
 
-// Get user profile
+// ✅ Get user profile
 router.get('/profile', authController.getProfile);
 
-// Logout user
+// ✅ Logout user
 router.post('/logout', authController.logout);
+
+// ✅ Test route
+router.get('/test', (req, res) => {
+  res.json({ message: 'Auth routes are working!' });
+});
 
 module.exports = router;
