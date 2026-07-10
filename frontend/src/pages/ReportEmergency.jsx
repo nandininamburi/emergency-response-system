@@ -149,9 +149,11 @@ const ReportEmergency = () => {
     setLoading(true);
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      // ✅ Use environment variable with fallback to deployed backend
+      const API_URL = import.meta.env.VITE_API_URL || 'https://emergency-backend-uzkq.onrender.com/api';
       
       console.log('📡 Using API URL:', API_URL);
+      console.log('📡 Environment:', import.meta.env.MODE);
       
       // ✅ Generate a default description if empty
       let finalDescription = formData.description.trim();
@@ -179,71 +181,95 @@ const ReportEmergency = () => {
         console.log('✅ Backend is reachable');
       } catch (healthError) {
         console.error('❌ Backend health check failed:', healthError);
+        
+        // ✅ Try Render URL as fallback
+        if (API_URL.includes('localhost')) {
+          console.log('🔄 Trying Render URL as fallback...');
+          const renderUrl = 'https://emergency-backend-uzkq.onrender.com/api';
+          try {
+            const fallbackHealth = await fetch(`${renderUrl}/health`);
+            if (fallbackHealth.ok) {
+              console.log('✅ Render backend is reachable!');
+              // Use Render URL for the actual request
+              await submitEmergency(renderUrl);
+              return;
+            }
+          } catch (fallbackError) {
+            console.error('❌ Render backend also failed:', fallbackError);
+          }
+        }
         throw new Error('Cannot connect to backend server. Please check if the server is running.');
       }
 
-      // ✅ Convert voice blob to base64 if exists
-      let voiceBase64 = null;
-      if (voiceBlob) {
-        voiceBase64 = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(voiceBlob);
-        });
-      }
+      await submitEmergency(API_URL);
 
-      // ✅ Convert image to base64 if exists
-      let imageBase64 = null;
-      if (imageFile) {
-        imageBase64 = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(imageFile);
-        });
-      }
-
-      // ✅ Prepare request body with default description if needed
-      const requestBody = {
-        name: formData.name || 'Anonymous',
-        phone: formData.phone || 'N/A',
-        emergencyType: formData.emergencyType || 'Other',
-        description: finalDescription,
-        latitude: formData.latitude || DEFAULT_LOCATION.latitude,
-        longitude: formData.longitude || DEFAULT_LOCATION.longitude,
-        reportType: 'citizen',
-        reporterRole: 'citizen',
-        voiceMessage: voiceBase64,
-        photo: imageBase64
-      };
-
-      console.log('📤 Sending request:', requestBody);
-
-      // ✅ Submit the report
-      const response = await fetch(`${API_URL}/emergencies/citizen`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ Server error response:', errorData);
-        throw new Error(errorData.message || errorData.error || 'Failed to submit report');
-      }
-
-      const result = await response.json();
-      
-      if (result.success) {
-        alert(`✅ Emergency reported!\nComplaint ID: ${result.complaintId}`);
-        navigate(`/track/${result.complaintId}`);
-      } else {
-        throw new Error(result.message || 'Failed to submit report');
-      }
     } catch (error) {
       console.error('❌ Error submitting report:', error);
-      alert(`❌ Failed to submit report.\n\nError: ${error.message}`);
+      alert(`❌ Failed to submit report.\n\nError: ${error.message}\n\n💡 Make sure the backend server is running.\nBackend URL: ${import.meta.env.VITE_API_URL || 'https://emergency-backend-uzkq.onrender.com/api'}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ✅ Separate function for submission
+  const submitEmergency = async (API_URL) => {
+    // ✅ Convert voice blob to base64 if exists
+    let voiceBase64 = null;
+    if (voiceBlob) {
+      voiceBase64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(voiceBlob);
+      });
+    }
+
+    // ✅ Convert image to base64 if exists
+    let imageBase64 = null;
+    if (imageFile) {
+      imageBase64 = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(imageFile);
+      });
+    }
+
+    // ✅ Prepare request body
+    const requestBody = {
+      name: formData.name || 'Anonymous',
+      phone: formData.phone || 'N/A',
+      emergencyType: formData.emergencyType || 'Other',
+      description: formData.description.trim() || `${formData.emergencyType || 'Emergency'} reported at location`,
+      latitude: formData.latitude || DEFAULT_LOCATION.latitude,
+      longitude: formData.longitude || DEFAULT_LOCATION.longitude,
+      reportType: 'citizen',
+      reporterRole: 'citizen',
+      voiceMessage: voiceBase64,
+      photo: imageBase64
+    };
+
+    console.log('📤 Sending request to:', `${API_URL}/emergencies/citizen`);
+    console.log('📤 Request body:', requestBody);
+
+    // ✅ Submit the report
+    const response = await fetch(`${API_URL}/emergencies/citizen`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('❌ Server error response:', errorData);
+      throw new Error(errorData.message || errorData.error || 'Failed to submit report');
+    }
+
+    const result = await response.json();
+    
+    if (result.success) {
+      alert(`✅ Emergency reported!\nComplaint ID: ${result.complaintId}`);
+      navigate(`/track/${result.complaintId}`);
+    } else {
+      throw new Error(result.message || 'Failed to submit report');
     }
   };
 
